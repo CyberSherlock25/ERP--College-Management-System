@@ -1,0 +1,79 @@
+{% extends 'base.html' %}
+
+{% block title %}My Attendance{% endblock %}
+
+{% block content %}
+<div class="py-4">
+    <h1 class="h2 mb-4">My Attendance</h1>
+    
+    <div class="row">
+        <div class="col-md-4 mb-4">
+            <div class="card shadow">
+                <div class="card-header">
+                    <h6 class="mb-0">Subject-wise Attendance</h6>
+                </div>
+                <div class="card-body">
+                    {% for subject, data in subject_attendance.items %}
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between">
+                                <span>{{ subject.course.name }}</span>
+                                <strong>{{ data.percentage }}%</strong>
+                            </div>
+                            <div class="progress mt-1">
+                                <div class="progress-bar" style="width: {{ data.percentage }}%"></div>
+                            </div>
+                            <small class="text-muted">
+                                Present: {{ data.present }} | Absent: {{ data.absent }} | Total: {{ data.total }}
+                            </small>
+                        </div>
+                    {% empty %}
+                        <p class="text-muted">No attendance records found.</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-8">
+            <div class="card shadow">
+                <div class="card-header">
+                    <h6 class="mb-0">Recent Attendance Records</h6>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Subject</th>
+                                    <th>Status</th>
+                                    <th>Remarks</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for record in attendance_records|slice:":20" %}
+                                <tr>
+                                    <td>{{ record.date }}</td>
+                                    <td>{{ record.subject.course.name }}</td>
+                                    <td>
+                                        {% if record.is_present %}
+                                            <span class="badge bg-success">Present</span>
+                                        {% else %}
+                                            <span class="badge bg-danger">Absent</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ record.remarks|default:"-" }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="4" class="text-center text-muted">No attendance records found.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

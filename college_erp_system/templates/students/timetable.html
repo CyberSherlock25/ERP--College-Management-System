@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+
+{% block title %}My Timetable{% endblock %}
+
+{% block content %}
+<div class="py-4">
+    <h1 class="h2 mb-4">My Timetable</h1>
+    
+    {% if student.student_class %}
+        <div class="card shadow">
+            <div class="card-header">
+                <h5 class="mb-0">{{ student.student_class }} - Academic Year {{ student.student_class.academic_year }}</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-bordered">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Time</th>
+                                {% for day in days %}
+                                    <th class="text-center">{{ day|title }}</th>
+                                {% endfor %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- This is a simplified version - in a real implementation, 
+                                 you'd need to organize by time slots -->
+                            {% if organized_timetable %}
+                                <tr>
+                                    <td><strong>Class Schedule</strong></td>
+                                    {% for day in days %}
+                                        <td class="text-center">
+                                            {% for schedule in organized_timetable|lookup:day %}
+                                                <div class="mb-2">
+                                                    <strong>{{ schedule.subject.course.name }}</strong><br>
+                                                    <small>{{ schedule.time_slot.start_time }} - {{ schedule.time_slot.end_time }}</small><br>
+                                                    <small class="text-muted">Room: {{ schedule.room_number|default:"TBA" }}</small>
+                                                </div>
+                                            {% empty %}
+                                                <span class="text-muted">No classes</span>
+                                            {% endfor %}
+                                        </td>
+                                    {% endfor %}
+                                </tr>
+                            {% else %}
+                                <tr>
+                                    <td colspan="7" class="text-center text-muted">No timetable available</td>
+                                </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    {% else %}
+        <div class="alert alert-warning">
+            <i class="bi bi-exclamation-triangle"></i>
+            You are not assigned to any class. Please contact the administration.
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

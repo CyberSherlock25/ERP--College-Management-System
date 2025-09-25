@@ -1,0 +1,219 @@
+{% extends 'base.html' %}
+
+{% block title %}Student Dashboard - {{ student.user.get_full_name }}{% endblock %}
+
+{% block content %}
+<div class="py-4">
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center">
+        <h1 class="h2">Welcome back, {{ student.user.first_name }}!</h1>
+        <div class="btn-toolbar mb-2 mb-md-0">
+            <div class="btn-group me-2">
+                <span class="badge bg-primary fs-6">{{ student.roll_number }}</span>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row mt-4">
+        <!-- Attendance Card -->
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-primary shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                Attendance
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                {{ attendance_percentage }}%
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="bi bi-check2-square fs-2 text-primary"></i>
+                        </div>
+                    </div>
+                    <div class="progress mt-2">
+                        <div class="progress-bar" role="progressbar" style="width: {{ attendance_percentage }}%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Upcoming Exams Card -->
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-success shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                Upcoming Exams
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                {{ upcoming_exams.count }}
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="bi bi-file-earmark-text fs-2 text-success"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Pending Fees Card -->
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-warning shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                                Pending Fees
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                ${{ pending_fees|length }}
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="bi bi-credit-card fs-2 text-warning"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Notifications Card -->
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-info shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                                New Notifications
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                {{ recent_notifications.count }}
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="bi bi-bell fs-2 text-info"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <!-- Upcoming Exams -->
+        <div class="col-lg-6">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Upcoming Exams</h6>
+                </div>
+                <div class="card-body">
+                    {% if upcoming_exams %}
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Subject</th>
+                                        <th>Type</th>
+                                        <th>Date</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for exam in upcoming_exams %}
+                                    <tr>
+                                        <td>{{ exam.subject.course.name }}</td>
+                                        <td><span class="badge bg-info">{{ exam.get_exam_type_display }}</span></td>
+                                        <td>{{ exam.date|date:"M d, Y" }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="text-center">
+                            <a href="{% url 'students:exams' %}" class="btn btn-primary btn-sm">View All Exams</a>
+                        </div>
+                    {% else %}
+                        <p class="text-muted">No upcoming exams scheduled.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Recent Notifications -->
+        <div class="col-lg-6">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Recent Notifications</h6>
+                </div>
+                <div class="card-body">
+                    {% if recent_notifications %}
+                        {% for notification in recent_notifications %}
+                        <div class="d-flex align-items-center border-bottom py-2">
+                            <div class="flex-grow-1">
+                                <h6 class="mb-0">
+                                    {{ notification.title }}
+                                    {% if notification.is_urgent %}
+                                        <span class="badge bg-danger ms-2">Urgent</span>
+                                    {% endif %}
+                                </h6>
+                                <small class="text-muted">{{ notification.created_at|timesince }} ago</small>
+                            </div>
+                            <div>
+                                <span class="badge bg-secondary">{{ notification.get_notification_type_display }}</span>
+                            </div>
+                        </div>
+                        {% endfor %}
+                        <div class="text-center mt-3">
+                            <a href="{% url 'students:notifications' %}" class="btn btn-primary btn-sm">View All Notifications</a>
+                        </div>
+                    {% else %}
+                        <p class="text-muted">No recent notifications.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Student Info -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Student Information</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Name:</strong> {{ student.user.get_full_name }}</p>
+                            <p><strong>Roll Number:</strong> {{ student.roll_number }}</p>
+                            <p><strong>Admission Number:</strong> {{ student.admission_number }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Department:</strong> {{ student.department.name }}</p>
+                            <p><strong>Class:</strong> {{ student.student_class|default:"Not Assigned" }}</p>
+                            <p><strong>Admission Date:</strong> {{ student.admission_date|date:"M d, Y" }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.border-left-primary {
+    border-left: 4px solid #007bff !important;
+}
+.border-left-success {
+    border-left: 4px solid #28a745 !important;
+}
+.border-left-warning {
+    border-left: 4px solid #ffc107 !important;
+}
+.border-left-info {
+    border-left: 4px solid #17a2b8 !important;
+}
+</style>
+{% endblock %}
