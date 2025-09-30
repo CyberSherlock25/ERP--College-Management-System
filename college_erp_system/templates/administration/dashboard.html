@@ -1,0 +1,322 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Administration Dashboard - MIT-WPU College ERP{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4 fade-in">
+    <!-- Hero Section -->
+    <div class="row mb-5">
+        <div class="col-12">
+            <div class="card bg-gradient-hero text-white border-0 shadow-lg">
+                <div class="card-body p-5">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <h1 class="display-5 fw-bold mb-3">
+                                <i class="bi bi-speedometer2 me-3"></i>Administration Dashboard
+                            </h1>
+                            <p class="lead mb-0">
+                                Welcome to MIT-WPU College ERP Administration Portal
+                            </p>
+                            <small class="opacity-75">
+                                Manage students, teachers, and academic operations efficiently
+                            </small>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <div class="d-none d-md-block">
+                                <i class="bi bi-building display-1 opacity-25"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-5">
+        <div class="col-lg-3 col-md-6 mb-4">
+            <div class="stat-card primary bounce-in">
+                <i class="bi bi-people-fill stat-icon"></i>
+                <h3>{{ total_students }}</h3>
+                <p>Total Students</p>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6 mb-4">
+            <div class="stat-card success bounce-in" style="animation-delay: 0.1s;">
+                <i class="bi bi-person-workspace stat-icon"></i>
+                <h3>{{ total_teachers }}</h3>
+                <p>Total Teachers</p>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6 mb-4">
+            <div class="stat-card info bounce-in" style="animation-delay: 0.2s;">
+                <i class="bi bi-building stat-icon"></i>
+                <h3>{{ total_departments }}</h3>
+                <p>Departments</p>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6 mb-4">
+            <div class="stat-card warning bounce-in" style="animation-delay: 0.3s;">
+                <i class="bi bi-book stat-icon"></i>
+                <h3>{{ total_courses }}</h3>
+                <p>Courses</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Dashboard Content -->
+    <div class="row">
+        <!-- Quick Analytics -->
+        <div class="col-lg-8 mb-4">
+            <div class="card border-0 shadow-custom">
+                <div class="card-header bg-gradient-primary text-white">
+                    <h5 class="card-title mb-0 fw-bold">
+                        <i class="bi bi-graph-up me-2"></i>Quick Analytics
+                    </h5>
+                </div>
+                <div class="card-body p-4">
+                    <div class="row g-4">
+                        <div class="col-md-6">
+                            <div class="d-flex align-items-center p-3 rounded" style="background: linear-gradient(135deg, #059669 0%, rgba(5, 150, 105, 0.1) 100%);">
+                                <div class="flex-shrink-0">
+                                    <i class="bi bi-check2-circle text-white bg-success rounded-circle p-2" style="font-size: 1.5rem;"></i>
+                                </div>
+                                <div class="flex-grow-1 ms-3">
+                                    <h6 class="mb-1 text-white fw-semibold">Weekly Attendance</h6>
+                                    <div class="progress mt-2" style="height: 8px;">
+                                        <div class="progress-bar bg-white" role="progressbar" 
+                                             style="width: {{ attendance_percentage }}%" 
+                                             aria-valuenow="{{ attendance_percentage }}" 
+                                             aria-valuemin="0" aria-valuemax="100">
+                                        </div>
+                                    </div>
+                                    <small class="text-white opacity-75">{{ attendance_percentage }}% Average</small>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="d-flex align-items-center p-3 rounded" style="background: linear-gradient(135deg, #0891b2 0%, rgba(8, 145, 178, 0.1) 100%);">
+                                <div class="flex-shrink-0">
+                                    <i class="bi bi-file-earmark-text text-white bg-info rounded-circle p-2" style="font-size: 1.5rem;"></i>
+                                </div>
+                                <div class="flex-grow-1 ms-3">
+                                    <h6 class="mb-1 text-white fw-semibold">Upcoming Exams</h6>
+                                    <h4 class="mb-0 text-white">{{ upcoming_exams }}</h4>
+                                    <small class="text-white opacity-75">This Week</small>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="d-flex align-items-center p-3 rounded" style="background: linear-gradient(135deg, #f59e0b 0%, rgba(245, 158, 11, 0.1) 100%);">
+                                <div class="flex-shrink-0">
+                                    <i class="bi bi-credit-card text-white bg-warning rounded-circle p-2" style="font-size: 1.5rem;"></i>
+                                </div>
+                                <div class="flex-grow-1 ms-3">
+                                    <h6 class="mb-1 text-white fw-semibold">Pending Fees</h6>
+                                    <h4 class="mb-0 text-white">{{ pending_fees_count }}</h4>
+                                    <small class="text-white opacity-75">₹{{ pending_fees_amount|floatformat:2 }}</small>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="d-flex align-items-center p-3 rounded" style="background: linear-gradient(135deg, #1e40af 0%, rgba(30, 64, 175, 0.1) 100%);">
+                                <div class="flex-shrink-0">
+                                    <i class="bi bi-people text-white bg-primary rounded-circle p-2" style="font-size: 1.5rem;"></i>
+                                </div>
+                                <div class="flex-grow-1 ms-3">
+                                    <h6 class="mb-1 text-white fw-semibold">Active Classes</h6>
+                                    <h4 class="mb-0 text-white">{{ total_classes }}</h4>
+                                    <small class="text-white opacity-75">Total Classes</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Notifications -->
+        <div class="col-lg-4 mb-4">
+            <div class="card border-0 shadow-custom">
+                <div class="card-header bg-gradient-primary text-white d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0 fw-bold">
+                        <i class="bi bi-bell me-2"></i>Recent Notifications
+                    </h5>
+                    <span class="badge bg-light text-dark">Last 7 days</span>
+                </div>
+                <div class="card-body p-0">
+                    {% if recent_notifications %}
+                        <div class="list-group list-group-flush">
+                            {% for notification in recent_notifications %}
+                                <div class="list-group-item border-0 py-3">
+                                    <div class="d-flex align-items-start">
+                                        <div class="flex-shrink-0 me-3">
+                                            {% if notification.is_urgent %}
+                                                <i class="bi bi-exclamation-triangle-fill text-danger"></i>
+                                            {% else %}
+                                                <i class="bi bi-info-circle text-primary"></i>
+                                            {% endif %}
+                                        </div>
+                                        <div class="flex-grow-1">
+                                            <h6 class="mb-1 fw-semibold">{{ notification.title }}</h6>
+                                            <p class="mb-1 text-muted small">{{ notification.message|truncatechars:60 }}</p>
+                                            <small class="text-muted">{{ notification.created_at|timesince }} ago</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="bi bi-bell-slash display-4 text-muted mb-3"></i>
+                            <p class="text-muted">No recent notifications</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Department Statistics -->
+    <div class="row mb-5">
+        <div class="col-12">
+            <div class="card border-0 shadow-custom">
+                <div class="card-header bg-gradient-primary text-white">
+                    <h5 class="card-title mb-0 fw-bold">
+                        <i class="bi bi-building me-2"></i>Department-wise Student Distribution
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th class="fw-bold">Department</th>
+                                    <th class="fw-bold">Code</th>
+                                    <th class="fw-bold">Students</th>
+                                    <th class="fw-bold">Head of Department</th>
+                                    <th class="fw-bold">Distribution</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for dept_info in department_stats %}
+                                    <tr class="align-middle">
+                                        <td class="fw-semibold">{{ dept_info.dept.name }}</td>
+                                        <td><span class="badge bg-secondary">{{ dept_info.dept.code }}</span></td>
+                                        <td>
+                                            <span class="fw-bold text-primary">{{ dept_info.student_count }}</span>
+                                        </td>
+                                        <td>
+                                            {% if dept_info.dept.head %}
+                                                <div class="d-flex align-items-center">
+                                                    <i class="bi bi-person-badge text-primary me-2"></i>
+                                                    <span class="fw-semibold">{{ dept_info.dept.head.get_full_name }}</span>
+                                                </div>
+                                            {% else %}
+                                                <span class="text-muted fst-italic">
+                                                    <i class="bi bi-dash-circle me-1"></i>Not assigned
+                                                </span>
+                                            {% endif %}
+                                        </td>
+                                        <td style="width: 200px;">
+                                            <div class="d-flex align-items-center">
+                                                <div class="progress flex-grow-1 me-2" style="height: 12px;">
+                                                    <div class="progress-bar bg-gradient-primary" role="progressbar" 
+                                                         style="width: {{ dept_info.percentage }}%">
+                                                    </div>
+                                                </div>
+                                                <small class="text-muted fw-bold">{{ dept_info.percentage }}%</small>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                {% empty %}
+                                    <tr>
+                                        <td colspan="5" class="text-center py-5">
+                                            <i class="bi bi-building-slash display-4 text-muted mb-3"></i>
+                                            <p class="text-muted">No departments found</p>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Enhanced Broadcast Notification Modal -->
+<div class="modal fade" id="broadcastModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content border-0 shadow-xl">
+            <div class="modal-header bg-gradient-primary text-white border-0">
+                <h5 class="modal-title fw-bold">
+                    <i class="bi bi-megaphone me-2"></i>Send Notification
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="text-center py-5">
+                    <div class="mb-4">
+                        <i class="bi bi-rocket-takeoff display-1 text-primary"></i>
+                    </div>
+                    <h4 class="fw-bold text-gradient-primary mb-3">Coming Soon!</h4>
+                    <p class="text-muted lead mb-4">
+                        Advanced notification system is under development. You'll be able to send notifications to:
+                    </p>
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <div class="p-3 rounded bg-light">
+                                <i class="bi bi-people text-primary mb-2 d-block" style="font-size: 2rem;"></i>
+                                <strong>Students</strong>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="p-3 rounded bg-light">
+                                <i class="bi bi-person-workspace text-success mb-2 d-block" style="font-size: 2rem;"></i>
+                                <strong>Teachers</strong>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="p-3 rounded bg-light">
+                                <i class="bi bi-building text-info mb-2 d-block" style="font-size: 2rem;"></i>
+                                <strong>Departments</strong>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer border-0 bg-light">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" onclick="showToast('Feature will be available soon!', 'info')">
+                    <i class="bi bi-bell me-1"></i>Notify Me
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Additional dashboard-specific styles */
+    .stat-card:nth-child(1) { animation-delay: 0s; }
+    .stat-card:nth-child(2) { animation-delay: 0.1s; }
+    .stat-card:nth-child(3) { animation-delay: 0.2s; }
+    .stat-card:nth-child(4) { animation-delay: 0.3s; }
+    
+    @media (max-width: 768px) {
+        .stat-card {
+            margin-bottom: 1.5rem;
+        }
+    }
+</style>
+{% endblock %}
