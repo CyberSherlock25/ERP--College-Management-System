@@ -1,5 +1,6 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib import messages
 from django.db.models import Count, Avg, Sum, Q, F
 from django.utils import timezone
 from django.http import JsonResponse, HttpResponse
@@ -17,7 +18,7 @@ from academics.models import (
 
 def is_admin_user(user):
     """Check if user is admin/staff"""
-    return user.is_authenticated and (user.is_staff or user.is_superuser)
+    return user.is_authenticated and (user.is_staff or user.is_superuser or user.is_admin)
 
 
 @login_required
@@ -91,6 +92,10 @@ def dashboard(request):
         })
     
     context['department_stats'] = department_stats
+    
+    # Add data for notice modal
+    context['all_students'] = Student.objects.filter(is_active=True).select_related('user', 'department').order_by('user__first_name')
+    context['all_teachers'] = Teacher.objects.filter(is_active=True).select_related('user', 'department').order_by('user__first_name')
     
     return render(request, 'administration/dashboard.html', context)
 
@@ -196,6 +201,192 @@ def send_notification(request):
 
 @login_required
 @user_passes_test(is_admin_user)
+def send_notice(request):
+    """Send notice to students/teachers (individual or bulk)"""
+    if request.method == 'POST':
+        try:
+            from accounts.models import User
+            
+            title = request.POST.get('title', '').strip()
+            message = request.POST.get('message', '').strip()
+            notice_type = request.POST.get('notice_type', 'general')
+            recipient_type = request.POST.get('recipient_type', '')
+            is_urgent = 'is_urgent' in request.POST
+            send_email = 'send_email' in request.POST
+            
+            if not title or not message:
+                messages.error(request, '❌ Title and message are required!')
+                return redirect('administration:dashboard')
+            
+            notifications_created = 0
+            recipient_description = ""
+            
+            # Determine recipients based on type and create notifications
+            if recipient_type == 'all':
+                # All students
+                students = Student.objects.filter(is_active=True)
+                for student in students:
+                    Notification.objects.create(
+                        title=title,
+                        message=message,
+                        notification_type=notice_type,
+                        target_audience='all_students',
+                        target_student=student,
+                        is_urgent=is_urgent,
+                        send_email=send_email,
+                        created_by=request.user
+                    )
+                    notifications_created += 1
+                
+                # All teachers
+                teachers = Teacher.objects.filter(is_active=True)
+                for teacher in teachers:
+                    Notification.objects.create(
+                        title=title,
+                        message=message,
+                        notification_type=notice_type,
+                        target_audience='all_teachers',
+                        target_teacher=teacher,
+                        is_urgent=is_urgent,
+                        send_email=send_email,
+                        created_by=request.user
+                    )
+                    notifications_created += 1
+                    
+                recipient_description = "Everyone (Students & Teachers)"
+                
+            elif recipient_type == 'all_students':
+                # All students
+                students = Student.objects.filter(is_active=True)
+                for student in students:
+                    Notification.objects.create(
+                        title=title,
+                        message=message,
+                        notification_type=notice_type,
+                        target_audience='all_students',
+                        target_student=student,
+                        is_urgent=is_urgent,
+                        send_email=send_email,
+                        created_by=request.user
+                    )
+                    notifications_created += 1
+                    
+                recipient_description = "All Students"
+                
+            elif recipient_type == 'all_teachers':
+                # All teachers
+                teachers = Teacher.objects.filter(is_active=True)
+                for teacher in teachers:
+                    Notification.objects.create(
+                        title=title,
+                        message=message,
+                        notification_type=notice_type,
+                        target_audience='all_teachers',
+                        target_teacher=teacher,
+                        is_urgent=is_urgent,
+                        send_email=send_email,
+                        created_by=request.user
+                    )
+                    notifications_created += 1
+                    
+                recipient_description = "All Teachers"
+                
+            elif recipient_type == 'department':
+                # Specific department
+                dept_id = request.POST.get('department_id')
+                if dept_id:
+                    dept = Department.objects.get(id=dept_id)
+                    
+                    # Students in this department
+                    students = Student.objects.filter(department=dept, is_active=True)
+                    for student in students:
+                        Notification.objects.create(
+                            title=title,
+                            message=message,
+                            notification_type=notice_type,
+                            target_audience='department',
+                            target_department=dept,
+                            target_student=student,
+                            is_urgent=is_urgent,
+                            send_email=send_email,
+                            created_by=request.user
+                        )
+                        notifications_created += 1
+                    
+                    # Teachers in this department
+                    teachers = Teacher.objects.filter(department=dept, is_active=True)
+                    for teacher in teachers:
+                        Notification.objects.create(
+                            title=title,
+                            message=message,
+                            notification_type=notice_type,
+                            target_audience='department',
+                            target_department=dept,
+                            target_teacher=teacher,
+                            is_urgent=is_urgent,
+                            send_email=send_email,
+                            created_by=request.user
+                        )
+                        notifications_created += 1
+                        
+                    recipient_description = f"Department: {dept.name}"
+                    
+            elif recipient_type == 'specific_student':
+                # Specific student
+                student_id = request.POST.get('student_id')
+                if student_id:
+                    student = Student.objects.get(id=student_id)
+                    Notification.objects.create(
+                        title=title,
+                        message=message,
+                        notification_type=notice_type,
+                        target_audience='individual_student',
+                        target_student=student,
+                        is_urgent=is_urgent,
+                        send_email=send_email,
+                        created_by=request.user
+                    )
+                    notifications_created += 1
+                    recipient_description = f"Student: {student.user.get_full_name()} ({student.roll_number})"
+                    
+            elif recipient_type == 'specific_teacher':
+                # Specific teacher
+                teacher_id = request.POST.get('teacher_id')
+                if teacher_id:
+                    teacher = Teacher.objects.get(id=teacher_id)
+                    Notification.objects.create(
+                        title=title,
+                        message=message,
+                        notification_type=notice_type,
+                        target_audience='individual_teacher',
+                        target_teacher=teacher,
+                        is_urgent=is_urgent,
+                        send_email=send_email,
+                        created_by=request.user
+                    )
+                    notifications_created += 1
+                    recipient_description = f"Teacher: {teacher.user.get_full_name()} ({teacher.employee_id})"
+            
+            if notifications_created == 0:
+                messages.error(request, '❌ No recipients selected!')
+                return redirect('administration:dashboard')
+            
+            # Success message
+            urgency_text = "🚨 Urgent " if is_urgent else ""
+            messages.success(
+                request, 
+                f'✅ {urgency_text}Notice sent successfully to {notifications_created} recipient(s)! '
+                f'Target: {recipient_description}'
+            )
+            
+        except Exception as e:
+            messages.error(request, f'❌ Error sending notice: {str(e)}')
+    
+    return redirect('administration:dashboard')
+
+
+@login_required
+@user_passes_test(is_admin_user)
 def system_reports(request):
     """Generate various system reports"""
     report_type = request.GET.get('type', 'overview')
@@ -261,36 +452,125 @@ def system_reports(request):
 @login_required
 @user_passes_test(is_admin_user)
 def manage_users(request):
-    """Manage students and teachers"""
-    user_type = request.GET.get('type', 'students')
+    """Manage students and teachers with advanced filtering"""
+    user_type = request.GET.get('type', 'all')
     search_query = request.GET.get('search', '')
+    department_filter = request.GET.get('department', '')
+    status_filter = request.GET.get('status', 'active')
+    sort_by = request.GET.get('sort', 'name')
     
-    context = {'user_type': user_type, 'search_query': search_query}
+    context = {
+        'user_type': user_type,
+        'search_query': search_query,
+        'department_filter': department_filter,
+        'status_filter': status_filter,
+        'sort_by': sort_by,
+        'departments': Department.objects.all().order_by('name')
+    }
     
-    if user_type == 'students':
-        students = Student.objects.filter(is_active=True).select_related('user', 'department')
+    # ALL USERS VIEW
+    if user_type == 'all':
+        from accounts.models import User
+        users = User.objects.all().select_related('student_profile', 'teacher_profile')
         
+        # Apply filters
+        if search_query:
+            users = users.filter(
+                Q(first_name__icontains=search_query) |
+                Q(last_name__icontains=search_query) |
+                Q(username__icontains=search_query) |
+                Q(email__icontains=search_query) |
+                Q(phone_number__icontains=search_query)
+            )
+        
+        if status_filter == 'active':
+            users = users.filter(is_active=True)
+        elif status_filter == 'inactive':
+            users = users.filter(is_active=False)
+        
+        # Sort
+        if sort_by == 'name':
+            users = users.order_by('first_name', 'last_name')
+        elif sort_by == 'date':
+            users = users.order_by('-date_joined')
+        elif sort_by == 'type':
+            users = users.order_by('user_type')
+        
+        context['all_users'] = users
+        context['total_users'] = users.count()
+        context['admin_count'] = users.filter(user_type='admin').count()
+        context['teacher_count'] = users.filter(user_type='teacher').count()
+        context['student_count'] = users.filter(user_type='student').count()
+    
+    # STUDENTS VIEW
+    elif user_type == 'students':
+        students = Student.objects.all().select_related('user', 'department', 'student_class')
+        
+        # Apply filters
         if search_query:
             students = students.filter(
                 Q(user__first_name__icontains=search_query) |
                 Q(user__last_name__icontains=search_query) |
                 Q(roll_number__icontains=search_query) |
-                Q(admission_number__icontains=search_query)
+                Q(admission_number__icontains=search_query) |
+                Q(user__email__icontains=search_query)
             )
+        
+        if department_filter:
+            students = students.filter(department_id=department_filter)
+        
+        if status_filter == 'active':
+            students = students.filter(is_active=True)
+        elif status_filter == 'inactive':
+            students = students.filter(is_active=False)
+        
+        # Sort
+        if sort_by == 'name':
+            students = students.order_by('user__first_name', 'user__last_name')
+        elif sort_by == 'roll':
+            students = students.order_by('roll_number')
+        elif sort_by == 'date':
+            students = students.order_by('-admission_date')
+        elif sort_by == 'department':
+            students = students.order_by('department__name')
         
         context['students'] = students
         context['total_students'] = students.count()
     
+    # TEACHERS VIEW
     elif user_type == 'teachers':
-        teachers = Teacher.objects.filter(is_active=True).select_related('user', 'department')
+        teachers = Teacher.objects.all().select_related('user', 'department')
         
+        # Apply filters
         if search_query:
             teachers = teachers.filter(
                 Q(user__first_name__icontains=search_query) |
                 Q(user__last_name__icontains=search_query) |
                 Q(employee_id__icontains=search_query) |
-                Q(designation__icontains=search_query)
+                Q(designation__icontains=search_query) |
+                Q(user__email__icontains=search_query) |
+                Q(specialization__icontains=search_query)
             )
+        
+        if department_filter:
+            teachers = teachers.filter(department_id=department_filter)
+        
+        if status_filter == 'active':
+            teachers = teachers.filter(is_active=True)
+        elif status_filter == 'inactive':
+            teachers = teachers.filter(is_active=False)
+        
+        # Sort
+        if sort_by == 'name':
+            teachers = teachers.order_by('user__first_name', 'user__last_name')
+        elif sort_by == 'employee':
+            teachers = teachers.order_by('employee_id')
+        elif sort_by == 'date':
+            teachers = teachers.order_by('-joining_date')
+        elif sort_by == 'department':
+            teachers = teachers.order_by('department__name')
+        elif sort_by == 'designation':
+            teachers = teachers.order_by('designation')
         
         context['teachers'] = teachers
         context['total_teachers'] = teachers.count()
@@ -633,3 +913,261 @@ def academic_performance(request):
     }
     
     return render(request, 'administration/academic_performance.html', context)
+
+
+@login_required
+@user_passes_test(is_admin_user)
+def add_student(request):
+    """Add new student"""
+    if request.method == 'POST':
+        try:
+            from accounts.models import User
+            
+            username = request.POST.get('username')
+            # Auto-generate email with @mitwpu.edu.in domain
+            email = f"{username}@mitwpu.edu.in"
+            
+            # Create user account
+            user = User.objects.create_user(
+                username=username,
+                email=email,
+                password=request.POST.get('password'),
+                first_name=request.POST.get('first_name'),
+                last_name=request.POST.get('last_name'),
+                user_type='student'
+            )
+            
+            # Update additional fields
+            if request.POST.get('phone_number'):
+                user.phone_number = request.POST.get('phone_number')
+            if request.POST.get('date_of_birth'):
+                user.date_of_birth = request.POST.get('date_of_birth')
+            if request.POST.get('address'):
+                user.address = request.POST.get('address')
+            if request.FILES.get('profile_picture'):
+                user.profile_picture = request.FILES.get('profile_picture')
+            user.save()
+            
+            # Get department from form
+            department_id = request.POST.get('department')
+            if not department_id:
+                messages.error(request, 'Please select a department.')
+                return redirect('administration:dashboard')
+            
+            department = Department.objects.get(id=department_id)
+            
+            # Generate unique roll number based on department
+            dept_student_count = Student.objects.filter(department=department).count()
+            roll_number = f"{department.code}{timezone.now().year}{dept_student_count + 1:04d}"
+            admission_number = f"ADM{timezone.now().year}{Student.objects.count() + 1:05d}"
+            
+            student = Student.objects.create(
+                user=user,
+                roll_number=roll_number,
+                admission_number=admission_number,
+                department=department,
+                admission_date=timezone.now().date(),
+                guardian_name=request.POST.get('guardian_name', 'Not Provided'),
+                guardian_phone=request.POST.get('guardian_phone', '0000000000'),
+                guardian_address=request.POST.get('guardian_address', 'Not Provided'),
+                emergency_contact=request.POST.get('emergency_contact', '0000000000')
+            )
+            
+            messages.success(request, f'✅ Student {user.get_full_name()} added successfully! Roll No: {student.roll_number}, Department: {department.name}')
+        except Exception as e:
+            messages.error(request, f'Error adding student: {str(e)}')
+    
+    return redirect('administration:dashboard')
+
+
+@login_required
+@user_passes_test(is_admin_user)
+def add_teacher(request):
+    """Add new teacher"""
+    if request.method == 'POST':
+        try:
+            from accounts.models import User
+            
+            username = request.POST.get('username')
+            # Auto-generate email with @mitwpu.edu.in domain
+            email = f"{username}@mitwpu.edu.in"
+            
+            # Create user account
+            user = User.objects.create_user(
+                username=username,
+                email=email,
+                password=request.POST.get('password'),
+                first_name=request.POST.get('first_name'),
+                last_name=request.POST.get('last_name'),
+                user_type='teacher'
+            )
+            
+            # Update additional fields
+            if request.POST.get('phone_number'):
+                user.phone_number = request.POST.get('phone_number')
+            if request.POST.get('date_of_birth'):
+                user.date_of_birth = request.POST.get('date_of_birth')
+            if request.POST.get('address'):
+                user.address = request.POST.get('address')
+            if request.FILES.get('profile_picture'):
+                user.profile_picture = request.FILES.get('profile_picture')
+            user.save()
+            
+            # Get department from form
+            department_id = request.POST.get('department')
+            if not department_id:
+                messages.error(request, 'Please select a department.')
+                return redirect('administration:dashboard')
+            
+            department = Department.objects.get(id=department_id)
+            
+            # Generate unique employee ID based on department
+            dept_teacher_count = Teacher.objects.filter(department=department).count()
+            employee_id = f"{department.code}T{timezone.now().year}{dept_teacher_count + 1:04d}"
+            
+            # Get qualification from form or default to 'other'
+            qualification = request.POST.get('qualification_choice', 'other')
+            if not qualification or qualification not in ['bachelor', 'master', 'phd', 'other']:
+                qualification = 'other'
+            
+            teacher = Teacher.objects.create(
+                user=user,
+                employee_id=employee_id,
+                department=department,
+                designation=request.POST.get('designation', 'Assistant Professor'),
+                qualification=qualification,
+                specialization=request.POST.get('specialization', ''),
+                experience_years=int(request.POST.get('experience', 0) or 0),
+                employment_type='permanent',
+                joining_date=timezone.now().date()
+            )
+            
+            messages.success(request, f'✅ Teacher {user.get_full_name()} added successfully! Employee ID: {teacher.employee_id}, Department: {department.name}')
+        except Exception as e:
+            messages.error(request, f'Error adding teacher: {str(e)}')
+    
+    return redirect('administration:dashboard')
+
+
+@login_required
+@user_passes_test(is_admin_user)
+def get_user_data(request, user_id):
+    """Get user data for editing"""
+    try:
+        from accounts.models import User
+        user = User.objects.get(id=user_id)
+        
+        data = {
+            'id': user.id,
+            'username': user.username,
+            'first_name': user.first_name,
+            'last_name': user.last_name,
+            'email': user.email,
+            'phone_number': user.phone_number,
+            'date_of_birth': user.date_of_birth.strftime('%Y-%m-%d') if user.date_of_birth else '',
+            'address': user.address,
+            'is_active': user.is_active,
+            'user_type': user.user_type,
+        }
+        
+        # Add student-specific data
+        if user.user_type == 'student' and hasattr(user, 'student_profile'):
+            student = user.student_profile
+            data['student_profile'] = {
+                'roll_number': student.roll_number,
+                'admission_number': student.admission_number,
+                'department_id': student.department.id if student.department else None,
+                'guardian_name': student.guardian_name,
+                'guardian_phone': student.guardian_phone,
+                'guardian_address': student.guardian_address,
+                'emergency_contact': student.emergency_contact,
+            }
+        
+        # Add teacher-specific data
+        if user.user_type == 'teacher' and hasattr(user, 'teacher_profile'):
+            teacher = user.teacher_profile
+            data['teacher_profile'] = {
+                'employee_id': teacher.employee_id,
+                'department_id': teacher.department.id if teacher.department else None,
+                'designation': teacher.designation,
+                'qualification': teacher.qualification,
+                'specialization': teacher.specialization,
+                'experience_years': teacher.experience_years,
+            }
+        
+        return JsonResponse(data)
+    except User.DoesNotExist:
+        return JsonResponse({'error': 'User not found'}, status=404)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+@login_required
+@user_passes_test(is_admin_user)
+def edit_user(request):
+    """Edit user profile"""
+    if request.method == 'POST':
+        try:
+            from accounts.models import User
+            
+            user_id = request.POST.get('user_id')
+            user = User.objects.get(id=user_id)
+            
+            # Update basic user information
+            user.first_name = request.POST.get('first_name')
+            user.last_name = request.POST.get('last_name')
+            user.email = request.POST.get('email')
+            user.phone_number = request.POST.get('phone_number', '')
+            user.address = request.POST.get('address', '')
+            user.is_active = 'is_active' in request.POST
+            
+            # Update date of birth if provided
+            dob = request.POST.get('date_of_birth')
+            if dob:
+                user.date_of_birth = dob
+            
+            # Update profile picture if provided
+            if request.FILES.get('profile_picture'):
+                user.profile_picture = request.FILES.get('profile_picture')
+            
+            # Update password if provided
+            new_password = request.POST.get('new_password')
+            confirm_password = request.POST.get('confirm_password')
+            if new_password and confirm_password:
+                if new_password == confirm_password:
+                    user.set_password(new_password)
+                else:
+                    messages.error(request, 'Passwords do not match!')
+                    return redirect('administration:users')
+            
+            user.save()
+            
+            # Update student-specific information (excluding roll_number, admission_number, department)
+            if user.user_type == 'student' and hasattr(user, 'student_profile'):
+                student = user.student_profile
+                # Only update guardian information - NOT department, roll number, or admission number
+                student.guardian_name = request.POST.get('guardian_name', student.guardian_name)
+                student.guardian_phone = request.POST.get('guardian_phone', student.guardian_phone)
+                student.save()
+            
+            # Update teacher-specific information (excluding employee_id, department)
+            if user.user_type == 'teacher' and hasattr(user, 'teacher_profile'):
+                teacher = user.teacher_profile
+                # Only update mutable fields - NOT employee ID or department
+                teacher.designation = request.POST.get('designation', teacher.designation)
+                teacher.qualification = request.POST.get('qualification', teacher.qualification)
+                teacher.specialization = request.POST.get('specialization', teacher.specialization)
+                exp = request.POST.get('experience')
+                if exp:
+                    teacher.experience_years = int(exp)
+                teacher.save()
+            
+            messages.success(request, f'✅ User {user.get_full_name()} updated successfully!')
+        except User.DoesNotExist:
+            messages.error(request, 'User not found!')
+        except Exception as e:
+            messages.error(request, f'Error updating user: {str(e)}')
+    
+    return redirect('administration:users')
+
+

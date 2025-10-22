@@ -1,13 +1,245 @@
 {% extends 'base.html' %}
 
-{% block title %}Profile{% endblock %}
+{% block title %}Profile - {{ user.get_full_name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .profile-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 40px;
+        border-radius: 15px;
+        margin-bottom: 30px;
+        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+        animation: slideInUp 0.6s ease;
+    }
+
+    .profile-avatar {
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        background: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 3rem;
+        color: #667eea;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        animation: pulse 2s ease-in-out infinite;
+    }
+
+    .info-group {
+        background: white;
+        padding: 20px;
+        border-radius: 10px;
+        margin-bottom: 15px;
+        border-left: 4px solid #667eea;
+        transition: all 0.3s ease;
+    }
+
+    .info-group:hover {
+        transform: translateX(10px);
+        box-shadow: 0 5px 20px rgba(102, 126, 234, 0.2);
+    }
+
+    .info-label {
+        font-weight: 600;
+        color: #667eea;
+        margin-bottom: 5px;
+        display: flex;
+        align-items: center;
+    }
+
+    .info-label i {
+        margin-right: 10px;
+        font-size: 1.2rem;
+    }
+
+    .info-value {
+        font-size: 1.1rem;
+        color: #333;
+        padding-left: 32px;
+    }
+
+    @keyframes slideInUp {
+        from {
+            opacity: 0;
+            transform: translateY(30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+</style>
+{% endblock %}
 
 {% block content %}
 <div class="py-4">
-    <h1 class="h2 mb-4">Profile</h1>
-    <div class="alert alert-info">
-        <i class="bi bi-info-circle"></i>
-        Profile management features coming soon!
+    <div class="profile-header">
+        <div class="row align-items-center">
+            <div class="col-auto">
+                <div class="profile-avatar">
+                    <i class="bi bi-person-circle"></i>
+                </div>
+            </div>
+            <div class="col">
+                <h1 class="h2 mb-2">{{ user.get_full_name|default:user.username }}</h1>
+                <p class="mb-1 opacity-75">
+                    <i class="bi bi-envelope-fill me-2"></i>{{ user.email|default:"No email set" }}
+                </p>
+                <p class="mb-0 opacity-75">
+                    <i class="bi bi-shield-check me-2"></i>
+                    {% if user.is_superuser %}
+                        Administrator
+                    {% elif user.is_staff %}
+                        Staff Member
+                    {% elif user.is_student %}
+                        Student
+                    {% elif user.is_teacher %}
+                        Teacher
+                    {% else %}
+                        User
+                    {% endif %}
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-6">
+            <div class="card shadow-lg hover-lift mb-4">
+                <div class="card-header">
+                    <h5 class="m-0">
+                        <i class="bi bi-person-badge me-2"></i>
+                        Personal Information
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="info-group">
+                        <div class="info-label">
+                            <i class="bi bi-person-fill"></i>
+                            Username
+                        </div>
+                        <div class="info-value">{{ user.username }}</div>
+                    </div>
+
+                    <div class="info-group">
+                        <div class="info-label">
+                            <i class="bi bi-card-heading"></i>
+                            First Name
+                        </div>
+                        <div class="info-value">{{ user.first_name|default:"Not set" }}</div>
+                    </div>
+
+                    <div class="info-group">
+                        <div class="info-label">
+                            <i class="bi bi-card-text"></i>
+                            Last Name
+                        </div>
+                        <div class="info-value">{{ user.last_name|default:"Not set" }}</div>
+                    </div>
+
+                    <div class="info-group">
+                        <div class="info-label">
+                            <i class="bi bi-envelope-fill"></i>
+                            Email Address
+                        </div>
+                        <div class="info-value">{{ user.email|default:"Not set" }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="card shadow-lg hover-lift mb-4">
+                <div class="card-header">
+                    <h5 class="m-0">
+                        <i class="bi bi-shield-lock me-2"></i>
+                        Account Details
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="info-group">
+                        <div class="info-label">
+                            <i class="bi bi-calendar-check"></i>
+                            Date Joined
+                        </div>
+                        <div class="info-value">{{ user.date_joined|date:"F d, Y" }}</div>
+                    </div>
+
+                    <div class="info-group">
+                        <div class="info-label">
+                            <i class="bi bi-clock-history"></i>
+                            Last Login
+                        </div>
+                        <div class="info-value">{{ user.last_login|date:"F d, Y, g:i A"|default:"Never" }}</div>
+                    </div>
+
+                    <div class="info-group">
+                        <div class="info-label">
+                            <i class="bi bi-shield-check"></i>
+                            Account Status
+                        </div>
+                        <div class="info-value">
+                            {% if user.is_active %}
+                                <span class="badge bg-success badge-custom">
+                                    <i class="bi bi-check-circle"></i> Active
+                                </span>
+                            {% else %}
+                                <span class="badge bg-danger badge-custom">
+                                    <i class="bi bi-x-circle"></i> Inactive
+                                </span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="info-group">
+                        <div class="info-label">
+                            <i class="bi bi-person-badge-fill"></i>
+                            User Role
+                        </div>
+                        <div class="info-value">
+                            {% if user.is_superuser %}
+                                <span class="badge bg-danger badge-custom">
+                                    <i class="bi bi-star-fill"></i> Administrator
+                                </span>
+                            {% elif user.is_staff %}
+                                <span class="badge bg-warning badge-custom">
+                                    <i class="bi bi-gear-fill"></i> Staff Member
+                                </span>
+                            {% elif user.is_student %}
+                                <span class="badge bg-primary badge-custom">
+                                    <i class="bi bi-mortarboard-fill"></i> Student
+                                </span>
+                            {% elif user.is_teacher %}
+                                <span class="badge bg-info badge-custom">
+                                    <i class="bi bi-person-workspace"></i> Teacher
+                                </span>
+                            {% else %}
+                                <span class="badge bg-secondary badge-custom">
+                                    <i class="bi bi-person"></i> User
+                                </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-lg">
+                <div class="card-body text-center py-4">
+                    <i class="bi bi-info-circle fs-1 text-primary mb-3 d-block"></i>
+                    <h5 class="text-muted">Profile Editing Feature Coming Soon!</h5>
+                    <p class="text-muted mb-0">
+                        You'll be able to update your profile information, change password, and customize your preferences.
+                    </p>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 {% endblock %}

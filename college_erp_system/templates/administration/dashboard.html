@@ -8,7 +8,7 @@
     <!-- Hero Section -->
     <div class="row mb-5">
         <div class="col-12">
-            <div class="card bg-gradient-hero text-white border-0 shadow-lg">
+            <div class="card text-white border-0 shadow-lg" style="background-color: #000 !important;">
                 <div class="card-body p-5">
                     <div class="row align-items-center">
                         <div class="col-md-8">
@@ -81,20 +81,16 @@
                 <div class="card-body p-4">
                     <div class="row g-4">
                         <div class="col-md-6">
-                            <div class="d-flex align-items-center p-3 rounded" style="background: linear-gradient(135deg, #059669 0%, rgba(5, 150, 105, 0.1) 100%);">
+                            <div class="d-flex align-items-center p-3 rounded" style="background: linear-gradient(135deg, #8b5cf6 0%, rgba(139, 92, 246, 0.1) 100%);">
                                 <div class="flex-shrink-0">
-                                    <i class="bi bi-check2-circle text-white bg-success rounded-circle p-2" style="font-size: 1.5rem;"></i>
+                                    <i class="bi bi-bell-fill text-white bg-purple rounded-circle p-2" style="font-size: 1.5rem; background-color: #8b5cf6 !important;"></i>
                                 </div>
                                 <div class="flex-grow-1 ms-3">
-                                    <h6 class="mb-1 text-white fw-semibold">Weekly Attendance</h6>
-                                    <div class="progress mt-2" style="height: 8px;">
-                                        <div class="progress-bar bg-white" role="progressbar" 
-                                             style="width: {{ attendance_percentage }}%" 
-                                             aria-valuenow="{{ attendance_percentage }}" 
-                                             aria-valuemin="0" aria-valuemax="100">
-                                        </div>
-                                    </div>
-                                    <small class="text-white opacity-75">{{ attendance_percentage }}% Average</small>
+                                    <h6 class="mb-1 text-white fw-semibold">Send Notices</h6>
+                                    <button class="btn btn-light btn-sm mt-2" data-bs-toggle="modal" data-bs-target="#sendNoticeModal">
+                                        <i class="bi bi-plus-circle me-1"></i>Create Notice
+                                    </button>
+                                    <small class="text-white opacity-75 d-block mt-1">Quick Announcement</small>
                                 </div>
                             </div>
                         </div>
@@ -228,9 +224,7 @@
                                         <td style="width: 200px;">
                                             <div class="d-flex align-items-center">
                                                 <div class="progress flex-grow-1 me-2" style="height: 12px;">
-                                                    <div class="progress-bar bg-gradient-primary" role="progressbar" 
-                                                         style="width: {{ dept_info.percentage }}%">
-                                                    </div>
+                                                    <div class="progress-bar bg-gradient-primary" role="progressbar" style="width: {{ dept_info.percentage|add:0 }}%;" aria-valuenow="{{ dept_info.percentage }}" aria-valuemin="0" aria-valuemax="100"></div>
                                                 </div>
                                                 <small class="text-muted fw-bold">{{ dept_info.percentage }}%</small>
                                             </div>
@@ -319,4 +313,169 @@
         }
     }
 </style>
+
+<!-- Send Notice Modal -->
+<div class="modal fade" id="sendNoticeModal" tabindex="-1" aria-labelledby="sendNoticeModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content" style="border-radius: 15px; border: none;">
+            <div class="modal-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 15px 15px 0 0;">
+                <h5 class="modal-title" id="sendNoticeModalLabel">
+                    <i class="bi bi-megaphone-fill me-2"></i>Send Notice/Announcement
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="POST" action="{% url 'administration:send_notice' %}" id="noticeForm">
+                {% csrf_token %}
+                <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
+                    <!-- Notice Title -->
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">
+                            <i class="bi bi-card-heading me-2 text-primary"></i>Notice Title <span class="text-danger">*</span>
+                        </label>
+                        <input type="text" class="form-control form-control-lg" name="title" placeholder="Enter notice title" required>
+                    </div>
+
+                    <!-- Notice Type -->
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">
+                            <i class="bi bi-tag-fill me-2 text-primary"></i>Notice Type <span class="text-danger">*</span>
+                        </label>
+                        <select class="form-select" name="notice_type" required>
+                            <option value="">Select Type</option>
+                            <option value="general">📢 General Announcement</option>
+                            <option value="urgent">🚨 Urgent Notice</option>
+                            <option value="academic">📚 Academic Notice</option>
+                            <option value="event">🎉 Event Announcement</option>
+                            <option value="exam">📝 Exam Notice</option>
+                            <option value="holiday">🏖️ Holiday Notice</option>
+                            <option value="fee">💰 Fee Related</option>
+                        </select>
+                    </div>
+
+                    <!-- Recipients -->
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">
+                            <i class="bi bi-people-fill me-2 text-primary"></i>Send To <span class="text-danger">*</span>
+                        </label>
+                        <select class="form-select" name="recipient_type" id="recipientType" required onchange="toggleRecipientOptions()">
+                            <option value="">Select Recipients</option>
+                            <option value="all">👥 Everyone (Students + Teachers)</option>
+                            <option value="all_students">🎓 All Students</option>
+                            <option value="all_teachers">👨‍🏫 All Teachers</option>
+                            <option value="department">🏢 Specific Department</option>
+                            <option value="specific_student">👤 Specific Student</option>
+                            <option value="specific_teacher">👨‍💼 Specific Teacher</option>
+                        </select>
+                    </div>
+
+                    <!-- Department Selection (Hidden by default) -->
+                    <div class="mb-4" id="departmentSelection" style="display: none;">
+                        <label class="form-label fw-bold">
+                            <i class="bi bi-building me-2 text-primary"></i>Select Department
+                        </label>
+                        <select class="form-select" name="department_id" id="departmentSelect">
+                            <option value="">Choose Department</option>
+                            {% for dept in all_departments %}
+                            <option value="{{ dept.id }}">{{ dept.name }} ({{ dept.code }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Specific Student Selection (Hidden by default) -->
+                    <div class="mb-4" id="studentSelection" style="display: none;">
+                        <label class="form-label fw-bold">
+                            <i class="bi bi-person-circle me-2 text-primary"></i>Select Student
+                        </label>
+                        <select class="form-select" name="student_id" id="studentSelect">
+                            <option value="">Choose Student</option>
+                            {% for student in all_students %}
+                            <option value="{{ student.id }}">
+                                {{ student.user.get_full_name }} - {{ student.roll_number }} ({{ student.department.code }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <small class="text-muted">Search by name or roll number</small>
+                    </div>
+
+                    <!-- Specific Teacher Selection (Hidden by default) -->
+                    <div class="mb-4" id="teacherSelection" style="display: none;">
+                        <label class="form-label fw-bold">
+                            <i class="bi bi-person-badge me-2 text-primary"></i>Select Teacher
+                        </label>
+                        <select class="form-select" name="teacher_id" id="teacherSelect">
+                            <option value="">Choose Teacher</option>
+                            {% for teacher in all_teachers %}
+                            <option value="{{ teacher.id }}">
+                                {{ teacher.user.get_full_name }} - {{ teacher.employee_id }} ({{ teacher.department.code }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <small class="text-muted">Search by name or employee ID</small>
+                    </div>
+
+                    <!-- Notice Message -->
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">
+                            <i class="bi bi-chat-left-text-fill me-2 text-primary"></i>Notice Message <span class="text-danger">*</span>
+                        </label>
+                        <textarea class="form-control" name="message" rows="6" placeholder="Enter detailed notice message..." required></textarea>
+                        <small class="text-muted">Provide complete details about the notice</small>
+                    </div>
+
+                    <!-- Priority/Urgency -->
+                    <div class="mb-4">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" name="is_urgent" id="isUrgent">
+                            <label class="form-check-label fw-bold" for="isUrgent">
+                                <i class="bi bi-exclamation-triangle-fill text-danger me-2"></i>Mark as Urgent
+                            </label>
+                        </div>
+                        <small class="text-muted">Urgent notices will be highlighted for recipients</small>
+                    </div>
+
+                    <!-- Email Notification -->
+                    <div class="mb-3">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" name="send_email" id="sendEmail" checked>
+                            <label class="form-check-label fw-bold" for="sendEmail">
+                                <i class="bi bi-envelope-fill text-primary me-2"></i>Send Email Notification
+                            </label>
+                        </div>
+                        <small class="text-muted">Emails will be sent to recipients' @mitwpu.edu.in addresses</small>
+                    </div>
+                </div>
+                
+                <div class="modal-footer" style="border-top: 2px solid #e9ecef;">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="bi bi-x-circle me-2"></i>Cancel
+                    </button>
+                    <button type="submit" class="btn btn-primary btn-lg">
+                        <i class="bi bi-send-fill me-2"></i>Send Notice
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    function toggleRecipientOptions() {
+        const recipientType = document.getElementById('recipientType').value;
+        
+        // Hide all selection divs
+        document.getElementById('departmentSelection').style.display = 'none';
+        document.getElementById('studentSelection').style.display = 'none';
+        document.getElementById('teacherSelection').style.display = 'none';
+        
+        // Show relevant selection based on choice
+        if (recipientType === 'department') {
+            document.getElementById('departmentSelection').style.display = 'block';
+        } else if (recipientType === 'specific_student') {
+            document.getElementById('studentSelection').style.display = 'block';
+        } else if (recipientType === 'specific_teacher') {
+            document.getElementById('teacherSelection').style.display = 'block';
+        }
+    }
+</script>
+
 {% endblock %}

@@ -42,6 +42,8 @@ class Notification(models.Model):
         ('exam', 'Exam'),
         ('fee', 'Fee'),
         ('event', 'Event'),
+        ('announcement', 'Announcement'),
+        ('alert', 'Alert'),
     ]
     
     title = models.CharField(max_length=200)
@@ -50,10 +52,13 @@ class Notification(models.Model):
     target_audience = models.CharField(
         max_length=20,
         choices=[
-            ('all', 'All Students'),
+            ('all', 'All'),
+            ('all_students', 'All Students'),
+            ('all_teachers', 'All Teachers'),
             ('class', 'Specific Class'),
             ('department', 'Specific Department'),
-            ('individual', 'Individual Student'),
+            ('individual_student', 'Individual Student'),
+            ('individual_teacher', 'Individual Teacher'),
         ],
         default='all'
     )
@@ -73,9 +78,18 @@ class Notification(models.Model):
         Student,
         on_delete=models.CASCADE,
         null=True,
-        blank=True
+        blank=True,
+        related_name='notifications'
+    )
+    target_teacher = models.ForeignKey(
+        'teachers.Teacher',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='notifications'
     )
     is_urgent = models.BooleanField(default=False)
+    send_email = models.BooleanField(default=False)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,

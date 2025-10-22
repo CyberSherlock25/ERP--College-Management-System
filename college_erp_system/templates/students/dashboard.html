@@ -2,13 +2,128 @@
 
 {% block title %}Student Dashboard - {{ student.user.get_full_name }}{% endblock %}
 
+{% block extra_css %}
+<style>
+    @keyframes countUp {
+        from {
+            transform: scale(0.8);
+            opacity: 0;
+        }
+        to {
+            transform: scale(1);
+            opacity: 1;
+        }
+    }
+
+    @keyframes slideInUp {
+        from {
+            opacity: 0;
+            transform: translateY(30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .welcome-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 30px;
+        border-radius: 15px;
+        margin-bottom: 30px;
+        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+        animation: slideInUp 0.6s ease;
+    }
+
+    .stats-card {
+        animation: slideInUp 0.8s ease;
+        animation-fill-mode: both;
+        cursor: pointer;
+    }
+
+    .stats-card:nth-child(1) { animation-delay: 0.1s; }
+    .stats-card:nth-child(2) { animation-delay: 0.2s; }
+    .stats-card:nth-child(3) { animation-delay: 0.3s; }
+    .stats-card:nth-child(4) { animation-delay: 0.4s; }
+
+    .stats-number {
+        font-size: 2.5rem;
+        font-weight: 700;
+        animation: countUp 0.8s ease;
+    }
+
+    .stats-icon {
+        font-size: 3rem;
+        opacity: 0.8;
+        transition: all 0.3s ease;
+    }
+
+    .stats-card:hover .stats-icon {
+        transform: scale(1.2) rotate(10deg);
+        opacity: 1;
+    }
+
+    .info-card {
+        background: white;
+        border-radius: 15px;
+        padding: 20px;
+        margin-bottom: 20px;
+        transition: all 0.3s ease;
+    }
+
+    .info-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+    }
+
+    .progress-animated {
+        animation: slideInUp 1s ease;
+    }
+
+    .badge-custom {
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-weight: 600;
+    }
+
+    .table-hover tbody tr {
+        transition: all 0.3s ease;
+    }
+
+    .table-hover tbody tr:hover {
+        background: linear-gradient(90deg, rgba(102, 126, 234, 0.1), transparent);
+        transform: translateX(5px);
+    }
+
+    .notification-item {
+        transition: all 0.3s ease;
+        padding: 15px;
+        border-radius: 10px;
+        margin-bottom: 10px;
+    }
+
+    .notification-item:hover {
+        background: rgba(102, 126, 234, 0.05);
+        transform: translateX(5px);
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="py-4">
-    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center">
-        <h1 class="h2">Welcome back, {{ student.user.first_name }}!</h1>
-        <div class="btn-toolbar mb-2 mb-md-0">
-            <div class="btn-group me-2">
-                <span class="badge bg-primary fs-6">{{ student.roll_number }}</span>
+    <div class="welcome-header">
+        <div class="d-flex justify-content-between align-items-center flex-wrap">
+            <div>
+                <h1 class="h2 mb-2">
+                    <i class="bi bi-emoji-smile"></i> Welcome back, {{ student.user.first_name }}!
+                </h1>
+                <p class="mb-0 opacity-75">Here's what's happening with your academics today</p>
+            </div>
+            <div>
+                <span class="badge badge-custom bg-white text-primary fs-5">
+                    <i class="bi bi-person-badge"></i> {{ student.roll_number }}
+                </span>
             </div>
         </div>
     </div>
@@ -16,23 +131,29 @@
     <div class="row mt-4">
         <!-- Attendance Card -->
         <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-left-primary shadow h-100 py-2">
+            <div class="card border-left-primary shadow h-100 py-3 stats-card">
                 <div class="card-body">
                     <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
-                                Attendance
+                        <div class="col">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-2">
+                                <i class="bi bi-graph-up"></i> Attendance
                             </div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">
+                            <div class="stats-number text-primary">
                                 {{ attendance_percentage }}%
+                            </div>
+                            <div class="progress progress-animated mt-3">
+                                <div class="progress-bar bg-primary" 
+                                     role="progressbar" 
+                                     style="width: {{ attendance_percentage|default:'0' }}%;"
+                                     aria-valuenow="{{ attendance_percentage }}" 
+                                     aria-valuemin="0" 
+                                     aria-valuemax="100">
+                                </div>
                             </div>
                         </div>
                         <div class="col-auto">
-                            <i class="bi bi-check2-square fs-2 text-primary"></i>
+                            <i class="bi bi-check2-square stats-icon text-primary"></i>
                         </div>
-                    </div>
-                    <div class="progress mt-2">
-                        <div class="progress-bar" role="progressbar" style="width: {{ attendance_percentage }}%"></div>
                     </div>
                 </div>
             </div>
@@ -40,19 +161,20 @@
         
         <!-- Upcoming Exams Card -->
         <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-left-success shadow h-100 py-2">
+            <div class="card border-left-success shadow h-100 py-3 stats-card">
                 <div class="card-body">
                     <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
-                                Upcoming Exams
+                        <div class="col">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-2">
+                                <i class="bi bi-calendar-event"></i> Upcoming Exams
                             </div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">
+                            <div class="stats-number text-success">
                                 {{ upcoming_exams.count }}
                             </div>
+                            <small class="text-muted">Scheduled this month</small>
                         </div>
                         <div class="col-auto">
-                            <i class="bi bi-file-earmark-text fs-2 text-success"></i>
+                            <i class="bi bi-file-earmark-text stats-icon text-success"></i>
                         </div>
                     </div>
                 </div>
@@ -61,19 +183,20 @@
         
         <!-- Pending Fees Card -->
         <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-left-warning shadow h-100 py-2">
+            <div class="card border-left-warning shadow h-100 py-3 stats-card">
                 <div class="card-body">
                     <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
-                                Pending Fees
+                        <div class="col">
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-2">
+                                <i class="bi bi-cash-stack"></i> Pending Fees
                             </div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">
-                                ${{ pending_fees|length }}
+                            <div class="stats-number text-warning">
+                                {{ pending_fees|length }}
                             </div>
+                            <small class="text-muted">Payment pending</small>
                         </div>
                         <div class="col-auto">
-                            <i class="bi bi-credit-card fs-2 text-warning"></i>
+                            <i class="bi bi-credit-card stats-icon text-warning"></i>
                         </div>
                     </div>
                 </div>
@@ -82,19 +205,20 @@
         
         <!-- Notifications Card -->
         <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-left-info shadow h-100 py-2">
+            <div class="card border-left-info shadow h-100 py-3 stats-card">
                 <div class="card-body">
                     <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
-                                New Notifications
+                        <div class="col">
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-2">
+                                <i class="bi bi-bell-fill"></i> Notifications
                             </div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">
+                            <div class="stats-number text-info">
                                 {{ recent_notifications.count }}
                             </div>
+                            <small class="text-muted">Unread messages</small>
                         </div>
                         <div class="col-auto">
-                            <i class="bi bi-bell fs-2 text-info"></i>
+                            <i class="bi bi-bell stats-icon text-info"></i>
                         </div>
                     </div>
                 </div>
@@ -104,72 +228,95 @@
     
     <div class="row">
         <!-- Upcoming Exams -->
-        <div class="col-lg-6">
-            <div class="card shadow mb-4">
-                <div class="card-header py-3">
-                    <h6 class="m-0 font-weight-bold text-primary">Upcoming Exams</h6>
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow-lg h-100">
+                <div class="card-header">
+                    <h5 class="m-0 d-flex align-items-center">
+                        <i class="bi bi-calendar-check me-2"></i>
+                        Upcoming Exams
+                    </h5>
                 </div>
                 <div class="card-body">
                     {% if upcoming_exams %}
                         <div class="table-responsive">
-                            <table class="table table-sm">
+                            <table class="table table-hover">
                                 <thead>
                                     <tr>
-                                        <th>Subject</th>
-                                        <th>Type</th>
-                                        <th>Date</th>
+                                        <th><i class="bi bi-book"></i> Subject</th>
+                                        <th><i class="bi bi-tag"></i> Type</th>
+                                        <th><i class="bi bi-calendar3"></i> Date</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {% for exam in upcoming_exams %}
                                     <tr>
-                                        <td>{{ exam.subject.course.name }}</td>
-                                        <td><span class="badge bg-info">{{ exam.get_exam_type_display }}</span></td>
+                                        <td class="fw-semibold">{{ exam.subject.course.name }}</td>
+                                        <td><span class="badge bg-info badge-custom">{{ exam.get_exam_type_display }}</span></td>
                                         <td>{{ exam.date|date:"M d, Y" }}</td>
                                     </tr>
                                     {% endfor %}
                                 </tbody>
                             </table>
                         </div>
-                        <div class="text-center">
-                            <a href="{% url 'students:exams' %}" class="btn btn-primary btn-sm">View All Exams</a>
+                        <div class="text-center mt-3">
+                            <a href="{% url 'students:exams' %}" class="btn btn-primary">
+                                <i class="bi bi-arrow-right-circle"></i> View All Exams
+                            </a>
                         </div>
                     {% else %}
-                        <p class="text-muted">No upcoming exams scheduled.</p>
+                        <div class="text-center py-4">
+                            <i class="bi bi-calendar-x fs-1 text-muted mb-3 d-block"></i>
+                            <p class="text-muted">No upcoming exams scheduled.</p>
+                        </div>
                     {% endif %}
                 </div>
             </div>
         </div>
         
         <!-- Recent Notifications -->
-        <div class="col-lg-6">
-            <div class="card shadow mb-4">
-                <div class="card-header py-3">
-                    <h6 class="m-0 font-weight-bold text-primary">Recent Notifications</h6>
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow-lg h-100">
+                <div class="card-header">
+                    <h5 class="m-0 d-flex align-items-center">
+                        <i class="bi bi-bell-fill me-2"></i>
+                        Recent Notifications
+                    </h5>
                 </div>
-                <div class="card-body">
+                <div class="card-body" style="max-height: 400px; overflow-y: auto;">
                     {% if recent_notifications %}
                         {% for notification in recent_notifications %}
-                        <div class="d-flex align-items-center border-bottom py-2">
-                            <div class="flex-grow-1">
-                                <h6 class="mb-0">
-                                    {{ notification.title }}
-                                    {% if notification.is_urgent %}
-                                        <span class="badge bg-danger ms-2">Urgent</span>
-                                    {% endif %}
-                                </h6>
-                                <small class="text-muted">{{ notification.created_at|timesince }} ago</small>
-                            </div>
-                            <div>
-                                <span class="badge bg-secondary">{{ notification.get_notification_type_display }}</span>
+                        <div class="notification-item">
+                            <div class="d-flex align-items-start">
+                                <div class="flex-grow-1">
+                                    <h6 class="mb-1 fw-bold">
+                                        <i class="bi bi-dot text-primary"></i>
+                                        {{ notification.title }}
+                                        {% if notification.is_urgent %}
+                                            <span class="badge bg-danger ms-2 badge-custom">
+                                                <i class="bi bi-exclamation-triangle"></i> Urgent
+                                            </span>
+                                        {% endif %}
+                                    </h6>
+                                    <small class="text-muted">
+                                        <i class="bi bi-clock"></i> {{ notification.created_at|timesince }} ago
+                                    </small>
+                                </div>
+                                <div>
+                                    <span class="badge bg-secondary badge-custom">{{ notification.get_notification_type_display }}</span>
+                                </div>
                             </div>
                         </div>
                         {% endfor %}
                         <div class="text-center mt-3">
-                            <a href="{% url 'students:notifications' %}" class="btn btn-primary btn-sm">View All Notifications</a>
+                            <a href="{% url 'students:notifications' %}" class="btn btn-primary">
+                                <i class="bi bi-arrow-right-circle"></i> View All Notifications
+                            </a>
                         </div>
                     {% else %}
-                        <p class="text-muted">No recent notifications.</p>
+                        <div class="text-center py-4">
+                            <i class="bi bi-bell-slash fs-1 text-muted mb-3 d-block"></i>
+                            <p class="text-muted">No recent notifications.</p>
+                        </div>
                     {% endif %}
                 </div>
             </div>
@@ -179,21 +326,52 @@
     <!-- Student Info -->
     <div class="row">
         <div class="col-12">
-            <div class="card shadow">
-                <div class="card-header py-3">
-                    <h6 class="m-0 font-weight-bold text-primary">Student Information</h6>
+            <div class="card shadow-lg info-card">
+                <div class="card-header">
+                    <h5 class="m-0 d-flex align-items-center">
+                        <i class="bi bi-person-vcard me-2"></i>
+                        Student Information
+                    </h5>
                 </div>
                 <div class="card-body">
-                    <div class="row">
+                    <div class="row g-4">
                         <div class="col-md-6">
-                            <p><strong>Name:</strong> {{ student.user.get_full_name }}</p>
-                            <p><strong>Roll Number:</strong> {{ student.roll_number }}</p>
-                            <p><strong>Admission Number:</strong> {{ student.admission_number }}</p>
+                            <div class="info-item">
+                                <p class="mb-2">
+                                    <i class="bi bi-person-fill text-primary me-2"></i>
+                                    <strong>Name:</strong> 
+                                    <span class="ms-2">{{ student.user.get_full_name }}</span>
+                                </p>
+                                <p class="mb-2">
+                                    <i class="bi bi-hash text-primary me-2"></i>
+                                    <strong>Roll Number:</strong> 
+                                    <span class="badge bg-primary ms-2">{{ student.roll_number }}</span>
+                                </p>
+                                <p class="mb-2">
+                                    <i class="bi bi-card-text text-primary me-2"></i>
+                                    <strong>Admission Number:</strong> 
+                                    <span class="ms-2">{{ student.admission_number }}</span>
+                                </p>
+                            </div>
                         </div>
                         <div class="col-md-6">
-                            <p><strong>Department:</strong> {{ student.department.name }}</p>
-                            <p><strong>Class:</strong> {{ student.student_class|default:"Not Assigned" }}</p>
-                            <p><strong>Admission Date:</strong> {{ student.admission_date|date:"M d, Y" }}</p>
+                            <div class="info-item">
+                                <p class="mb-2">
+                                    <i class="bi bi-building text-success me-2"></i>
+                                    <strong>Department:</strong> 
+                                    <span class="ms-2">{{ student.department.name }}</span>
+                                </p>
+                                <p class="mb-2">
+                                    <i class="bi bi-people-fill text-success me-2"></i>
+                                    <strong>Class:</strong> 
+                                    <span class="ms-2">{{ student.student_class|default:"Not Assigned" }}</span>
+                                </p>
+                                <p class="mb-2">
+                                    <i class="bi bi-calendar-event text-success me-2"></i>
+                                    <strong>Admission Date:</strong> 
+                                    <span class="ms-2">{{ student.admission_date|date:"M d, Y" }}</span>
+                                </p>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -202,18 +380,38 @@
     </div>
 </div>
 
-<style>
-.border-left-primary {
-    border-left: 4px solid #007bff !important;
-}
-.border-left-success {
-    border-left: 4px solid #28a745 !important;
-}
-.border-left-warning {
-    border-left: 4px solid #ffc107 !important;
-}
-.border-left-info {
-    border-left: 4px solid #17a2b8 !important;
-}
-</style>
+{% block extra_js %}
+<script>
+    // Animate progress bars on load
+    document.addEventListener('DOMContentLoaded', function() {
+        const progressBars = document.querySelectorAll('.progress-bar');
+        progressBars.forEach(bar => {
+            const width = bar.style.width;
+            bar.style.width = '0%';
+            setTimeout(() => {
+                bar.style.width = width;
+            }, 300);
+        });
+
+        // Add counter animation to stats numbers
+        const statNumbers = document.querySelectorAll('.stats-number');
+        statNumbers.forEach(stat => {
+            const value = parseInt(stat.textContent);
+            if (!isNaN(value)) {
+                let current = 0;
+                const increment = value / 30;
+                const timer = setInterval(() => {
+                    current += increment;
+                    if (current >= value) {
+                        stat.textContent = value + (stat.textContent.includes('%') ? '%' : '');
+                        clearInterval(timer);
+                    } else {
+                        stat.textContent = Math.floor(current) + (stat.textContent.includes('%') ? '%' : '');
+                    }
+                }, 30);
+            }
+        });
+    });
+</script>
+{% endblock %}
 {% endblock %}
