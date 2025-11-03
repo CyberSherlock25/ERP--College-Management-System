@@ -1169,5 +1169,3 @@ def edit_user(request):
             messages.error(request, f'Error updating user: {str(e)}')
     
     return redirect('administration:users')
-
-
