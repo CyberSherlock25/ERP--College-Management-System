@@ -8,7 +8,7 @@ def placeholder_view(request):
     return render(request, 'teachers/placeholder.html')
 
 urlpatterns = [
-    path('dashboard/', placeholder_view, name='dashboard'),
+    path('dashboard/', views.dashboard, name='dashboard'),
     path('timetable/', placeholder_view, name='timetable'),
     path('attendance/', views.attendance_select, name='attendance'),
     path('attendance/<int:subject_id>/', views.attendance_mark, name='attendance_mark'),

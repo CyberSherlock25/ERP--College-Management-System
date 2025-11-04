@@ -1,0 +1,178 @@
+{% extends 'base.html' %}
+
+{% block title %}Teacher Dashboard{% endblock %}
+
+{% block content %}
+<div class="py-4">
+    <h1 class="h2 mb-4">Teacher Dashboard</h1>
+
+    <!-- Top stats -->
+    <div class="row mb-4">
+        <div class="col-md-3 mb-3">
+            <div class="card shadow">
+                <div class="card-body text-center">
+                    <h6 class="card-subtitle mb-2 text-muted">Subjects</h6>
+                    <h3 class="mb-0">{{ subjects|length }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card shadow">
+                <div class="card-body text-center">
+                    <h6 class="card-subtitle mb-2 text-muted">Managed Classes</h6>
+                    <h3 class="mb-0">{{ managed_classes|length }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card shadow">
+                <div class="card-body text-center">
+                    <h6 class="card-subtitle mb-2 text-muted">Upcoming Exams</h6>
+                    <h3 class="mb-0">{{ upcoming_exams|length }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card shadow">
+                <div class="card-body text-center">
+                    <h6 class="card-subtitle mb-2 text-muted">Pending Today</h6>
+                    <h3 class="mb-0">{{ pending_today|length }}</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Today's Schedule -->
+        <div class="col-md-6 mb-4">
+            <div class="card shadow">
+                <div class="card-header">
+                    <h6 class="mb-0">Today's Schedule ({{ today|date:"D, M d" }})</h6>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Time</th>
+                                    <th>Subject</th>
+                                    <th>Class</th>
+                                    <th>Room</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for slot in todays_slots %}
+                                <tr>
+                                    <td>{{ slot.time_slot.start_time }} - {{ slot.time_slot.end_time }}</td>
+                                    <td>{{ slot.subject.course.code }} - {{ slot.subject.course.name }}</td>
+                                    <td>{{ slot.class_assigned }}</td>
+                                    <td>{{ slot.room_number|default:'-' }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="4" class="text-center text-muted">No classes scheduled today.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pending Attendance Today -->
+        <div class="col-md-6 mb-4">
+            <div class="card shadow">
+                <div class="card-header">
+                    <h6 class="mb-0">Pending Attendance (Today)</h6>
+                </div>
+                <div class="card-body">
+                    <ul class="list-group list-group-flush">
+                        {% for sub in pending_today %}
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                <div>
+                                    <div class="fw-bold">{{ sub.course.code }} - {{ sub.course.name }}</div>
+                                    <small class="text-muted">{{ sub.class_assigned }}</small>
+                                </div>
+                                <a href="{% url 'teachers:attendance' %}?semester={{ sub.course.semester }}&subject={{ sub.id }}&date={{ today|date:'Y-m-d' }}" class="btn btn-sm btn-primary">Mark</a>
+                            </li>
+                        {% empty %}
+                            <li class="list-group-item text-muted">All attendance marked for today. Great job!</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Upcoming Exams -->
+        <div class="col-md-6 mb-4">
+            <div class="card shadow">
+                <div class="card-header">
+                    <h6 class="mb-0">Upcoming Exams</h6>
+                </div>
+                <div class="card-body">
+                    <ul class="list-group list-group-flush">
+                        {% for exam in upcoming_exams %}
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                <div>
+                                    <div class="fw-bold">{{ exam.subject.course.code }} - {{ exam.subject.course.name }}</div>
+                                    <small class="text-muted">{{ exam.date|date:"M d, Y H:i" }} • {{ exam.get_exam_type_display }}</small>
+                                </div>
+                                <span class="badge bg-secondary">{{ exam.duration }}</span>
+                            </li>
+                        {% empty %}
+                            <li class="list-group-item text-muted">No upcoming exams.</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recently Marked Attendance -->
+        <div class="col-md-6 mb-4">
+            <div class="card shadow">
+                <div class="card-header">
+                    <h6 class="mb-0">Recently Marked Attendance</h6>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Subject</th>
+                                    <th>Student</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for rec in recent_marked_attendance %}
+                                <tr>
+                                    <td>{{ rec.date|date:"M d, Y" }}</td>
+                                    <td>{{ rec.subject.course.code }}</td>
+                                    <td>{{ rec.student.get_full_name|default:rec.student.username }}</td>
+                                    <td>
+                                        {% if rec.is_present %}
+                                            <span class="badge bg-success">Present</span>
+                                        {% else %}
+                                            <span class="badge bg-danger">Absent</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr><td colspan="4" class="text-center text-muted">No records yet.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+
