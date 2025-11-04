@@ -66,6 +66,13 @@ class Class(models.Model):
         return f"{self.department.code} - Sem {self.semester} - {self.section}"
 
 class Subject(models.Model):
+    # Subject delivery type to differentiate Theory/Practical/Tutorial
+    SUBJECT_TYPE_CHOICES = [
+        ('TH', 'Theory'),
+        ('PR', 'Practical'),
+        ('TU', 'Tutorial'),
+    ]
+    
     course = models.ForeignKey(Course, on_delete=models.CASCADE)
     class_assigned = models.ForeignKey(Class, on_delete=models.CASCADE)
     teacher = models.ForeignKey(
@@ -75,6 +82,7 @@ class Subject(models.Model):
         blank=True,
         related_name='taught_subjects'
     )
+    subject_type = models.CharField(max_length=2, choices=SUBJECT_TYPE_CHOICES, default='TH')
     
     class Meta:
         unique_together = ['course', 'class_assigned']

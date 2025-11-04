@@ -6,54 +6,184 @@
 <div class="py-4">
     <h1 class="h2 mb-4">My Attendance</h1>
     
-    <div class="row">
-        <div class="col-md-4 mb-4">
-            <div class="card shadow">
-                <div class="card-header">
-                    <h6 class="mb-0">Subject-wise Attendance</h6>
+    <!-- Semester Filter -->
+    <div class="card shadow mb-4">
+        <div class="card-body">
+            <form method="get" action="{% url 'students:attendance' %}" class="row g-3">
+                <div class="col-md-6">
+                    <label for="semester" class="form-label">Filter by Semester</label>
+                    <select name="semester" id="semester" class="form-select" onchange="this.form.submit()">
+                        <option value="">All Semesters</option>
+                        {% for sem_num, sem_name in semesters %}
+                            <option value="{{ sem_num }}" {% if selected_semester == sem_num %}selected{% endif %}>
+                                {{ sem_name }}
+                            </option>
+                        {% endfor %}
+                    </select>
                 </div>
-                <div class="card-body">
-                    {% for subject, data in subject_attendance.items %}
-                        <div class="mb-3">
-                            <div class="d-flex justify-content-between">
-                                <span>{{ subject.course.name }}</span>
-                                <strong>{{ data.percentage }}%</strong>
-                            </div>
-                            <div class="progress mt-1">
-                                <div class="progress-bar" style="width: {{ data.percentage }}%"></div>
-                            </div>
-                            <small class="text-muted">
-                                Present: {{ data.present }} | Absent: {{ data.absent }} | Total: {{ data.total }}
-                            </small>
-                        </div>
-                    {% empty %}
-                        <p class="text-muted">No attendance records found.</p>
-                    {% endfor %}
+                <div class="col-md-6">
+                    <label for="subject" class="form-label">Filter by Subject</label>
+                    <select name="subject" id="subject" class="form-select" onchange="this.form.submit()">
+                        <option value="">All Subjects</option>
+                        {% for subject in subjects %}
+                            <option value="{{ subject.id }}" {% if selected_subject and selected_subject.id == subject.id %}selected{% endif %}>
+                                {{ subject.course.code }} - {{ subject.course.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3 mb-3">
+            <div class="card shadow">
+                <div class="card-body text-center">
+                    <h6 class="card-subtitle mb-2 text-muted">Theory</h6>
+                    <h3 class="mb-0">{{ summary.theory.present }}/{{ summary.theory.total }}</h3>
+                    <div class="progress mt-2">
+                        <div class="progress-bar bg-primary" style="width: {{ summary.theory.percentage }}%"></div>
+                    </div>
+                    <small class="text-muted">{{ summary.theory.percentage }}%</small>
                 </div>
             </div>
         </div>
-        
-        <div class="col-md-8">
+        <div class="col-md-3 mb-3">
+            <div class="card shadow">
+                <div class="card-body text-center">
+                    <h6 class="card-subtitle mb-2 text-muted">Practical</h6>
+                    <h3 class="mb-0">{{ summary.practical.present }}/{{ summary.practical.total }}</h3>
+                    <div class="progress mt-2">
+                        <div class="progress-bar bg-success" style="width: {{ summary.practical.percentage }}%"></div>
+                    </div>
+                    <small class="text-muted">{{ summary.practical.percentage }}%</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card shadow">
+                <div class="card-body text-center">
+                    <h6 class="card-subtitle mb-2 text-muted">Tutorial</h6>
+                    <h3 class="mb-0">{{ summary.tutorial.present }}/{{ summary.tutorial.total }}</h3>
+                    <div class="progress mt-2">
+                        <div class="progress-bar bg-info" style="width: {{ summary.tutorial.percentage }}%"></div>
+                    </div>
+                    <small class="text-muted">{{ summary.tutorial.percentage }}%</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card shadow">
+                <div class="card-body text-center">
+                    <h6 class="card-subtitle mb-2 text-muted">Overall</h6>
+                    <h3 class="mb-0">{{ summary.overall.present }}/{{ summary.overall.total }}</h3>
+                    <div class="progress mt-2">
+                        <div class="progress-bar {% if summary.overall.percentage >= 75 %}bg-success{% elif summary.overall.percentage >= 50 %}bg-warning{% else %}bg-danger{% endif %}" style="width: {{ summary.overall.percentage }}%"></div>
+                    </div>
+                    <small class="text-muted">{{ summary.overall.percentage }}%</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Subject-wise Attendance -->
+        <div class="col-md-5 mb-4">
             <div class="card shadow">
                 <div class="card-header">
-                    <h6 class="mb-0">Recent Attendance Records</h6>
+                    <h6 class="mb-0">Subject-wise Attendance{% if selected_semester %} (Semester {{ selected_semester }}){% endif %}</h6>
+                </div>
+                <div class="card-body">
+                    {% if rows %}
+                        {% for row in rows %}
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <span class="fw-bold">{{ row.subject.course.code }} - {{ row.subject.course.name }}</span>
+                                    <strong class="{% if row.percentage >= 75 %}text-success{% elif row.percentage >= 50 %}text-warning{% else %}text-danger{% endif %}">
+                                        {{ row.percentage }}%
+                                    </strong>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <small class="text-muted">
+                                        <span class="badge bg-{% if row.subject_type == 'TH' %}primary{% elif row.subject_type == 'PR' %}success{% else %}info{% endif %}">
+                                            {{ row.subject.get_subject_type_display }}
+                                        </span>
+                                        Sem {{ row.semester }}
+                                    </small>
+                                    <small class="text-muted">{{ row.present }}/{{ row.total }}</small>
+                                </div>
+                                <div class="progress" style="height: 8px;">
+                                    <div class="progress-bar {% if row.percentage >= 75 %}bg-success{% elif row.percentage >= 50 %}bg-warning{% else %}bg-danger{% endif %}" 
+                                         style="width: {{ row.percentage }}%"></div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted">No attendance records found{% if selected_semester %} for semester {{ selected_semester }}{% endif %}.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Semester-wise Breakdown -->
+            {% if semester_attendance %}
+                <div class="card shadow mt-4">
+                    <div class="card-header">
+                        <h6 class="mb-0">Semester-wise Attendance</h6>
+                    </div>
+                    <div class="card-body">
+                        {% for sem_num, sem_name in semesters %}
+                            {% for key, sem_data in semester_attendance.items %}
+                                {% if key == sem_num and sem_data.total > 0 %}
+                                    <div class="mb-3">
+                                        <div class="d-flex justify-content-between align-items-center mb-1">
+                                            <span class="fw-bold">{{ sem_data.name }}</span>
+                                            <strong class="{% if sem_data.percentage >= 75 %}text-success{% elif sem_data.percentage >= 50 %}text-warning{% else %}text-danger{% endif %}">
+                                                {{ sem_data.percentage }}%
+                                            </strong>
+                                        </div>
+                                        <div class="d-flex justify-content-between align-items-center mb-1">
+                                            <small class="text-muted">{{ sem_data.subjects|length }} subject(s)</small>
+                                            <small class="text-muted">{{ sem_data.present }}/{{ sem_data.total }}</small>
+                                        </div>
+                                        <div class="progress" style="height: 8px;">
+                                            <div class="progress-bar {% if sem_data.percentage >= 75 %}bg-success{% elif sem_data.percentage >= 50 %}bg-warning{% else %}bg-danger{% endif %}" 
+                                                 style="width: {{ sem_data.percentage }}%"></div>
+                                        </div>
+                                    </div>
+                                {% endif %}
+                            {% endfor %}
+                        {% endfor %}
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+        
+        <!-- Recent Attendance Records -->
+        <div class="col-md-7">
+            <div class="card shadow">
+                <div class="card-header">
+                    <h6 class="mb-0">Recent Attendance Records{% if selected_subject %} - {{ selected_subject.course.name }}{% endif %}</h6>
                 </div>
                 <div class="card-body">
                     <div class="table-responsive">
-                        <table class="table table-sm">
+                        <table class="table table-sm table-hover">
                             <thead>
                                 <tr>
                                     <th>Date</th>
                                     <th>Subject</th>
+                                    <th>Sem</th>
                                     <th>Status</th>
                                     <th>Remarks</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for record in attendance_records|slice:":20" %}
+                                {% for record in recent_records %}
                                 <tr>
-                                    <td>{{ record.date }}</td>
-                                    <td>{{ record.subject.course.name }}</td>
+                                    <td>{{ record.date|date:"M d, Y" }}</td>
+                                    <td>{{ record.subject.course.code }} - {{ record.subject.course.name }}</td>
+                                    <td>{{ record.subject.course.semester }}</td>
                                     <td>
                                         {% if record.is_present %}
                                             <span class="badge bg-success">Present</span>
@@ -65,7 +195,7 @@
                                 </tr>
                                 {% empty %}
                                 <tr>
-                                    <td colspan="4" class="text-center text-muted">No attendance records found.</td>
+                                    <td colspan="5" class="text-center text-muted">No attendance records found{% if selected_subject %} for this subject{% endif %}.</td>
                                 </tr>
                                 {% endfor %}
                             </tbody>

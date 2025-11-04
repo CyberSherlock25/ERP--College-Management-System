@@ -6,7 +6,7 @@ from django.utils import timezone
 from datetime import datetime, timedelta
 
 from academics.models import (
-    Timetable, Attendance, Exam, Result, Fee, Subject
+    Timetable, Attendance, Exam, Result, Fee, Subject, Course
 )
 from .models import Student, Notification
 
@@ -43,9 +43,10 @@ def dashboard(request):
     # Get recent notifications
     recent_notifications = Notification.objects.filter(
         Q(target_audience='all') |
+        Q(target_audience='all_students') |
         Q(target_audience='class', target_class=student.student_class) |
         Q(target_audience='department', target_department=student.department) |
-        Q(target_audience='individual', target_student=student)
+        Q(target_audience='individual_student', target_student=student)
     ).order_by('-created_at')[:5]
     
     context = {
@@ -98,30 +99,158 @@ def attendance(request):
     
     student = request.user.student_profile
     
-    # Get attendance records for current semester
-    attendance_records = Attendance.objects.filter(
+    # Get current semester from student's class
+    current_semester = student.student_class.semester if student.student_class else None
+    
+    # Get filter parameters
+    selected_semester = request.GET.get('semester')
+    if selected_semester:
+        try:
+            selected_semester = int(selected_semester)
+        except ValueError:
+            selected_semester = current_semester
+    else:
+        selected_semester = current_semester
+    
+    # Get all semesters
+    semesters = Course.SEMESTER_CHOICES
+    
+    # Get all attendance records for the logged-in student (for semester-wise breakdown)
+    all_attendance_records = Attendance.objects.filter(
         student=request.user
-    ).select_related('subject__course').order_by('-date')
+    ).select_related('subject__course', 'subject__course__department', 'subject', 'marked_by').order_by('-date')
+
+    # Get filtered attendance records based on selected semester
+    attendance_records = all_attendance_records
+    if selected_semester:
+        attendance_records = attendance_records.filter(subject__course__semester=selected_semester)
+
+    # Subjects assigned to the student's class, filtered by selected semester
+    subjects = Subject.objects.filter(class_assigned=student.student_class).select_related('course', 'course__department')
     
-    # Calculate attendance percentage by subject
-    subjects = Subject.objects.filter(class_assigned=student.student_class)
-    subject_attendance = {}
+    if selected_semester:
+        subjects = subjects.filter(course__semester=selected_semester)
+
+    # Filter by subject if requested
+    selected_subject_id = request.GET.get('subject')
+    selected_subject = None
+    if selected_subject_id:
+        try:
+            selected_subject = subjects.get(id=selected_subject_id)
+        except Subject.DoesNotExist:
+            pass
+
+    # Build per-subject rows and aggregates by subject type
+    rows = []
+    aggregates = {
+        'TH': {'present': 0, 'total': 0},
+        'PR': {'present': 0, 'total': 0},
+        'TU': {'present': 0, 'total': 0},
+    }
     
+    # Group by semester for semester-wise breakdown (using ALL attendance records)
+    semester_attendance = {}
+    for semester_num, semester_name in semesters:
+        semester_attendance[semester_num] = {
+            'name': semester_name,
+            'subjects': [],
+            'present': 0,
+            'total': 0,
+            'percentage': 0.0
+        }
+
+    # Get all subjects for semester-wise breakdown
+    all_subjects = Subject.objects.filter(class_assigned=student.student_class).select_related('course', 'course__department')
+    
+    # Build semester-wise data from all subjects and all attendance records
+    for subject in all_subjects:
+        total = all_attendance_records.filter(subject=subject).count()
+        present = all_attendance_records.filter(subject=subject, is_present=True).count()
+        percentage = round((present / total * 100), 2) if total > 0 else 0.0
+        
+        # Add to semester-wise data
+        sem = subject.course.semester
+        if sem in semester_attendance and total > 0:
+            semester_attendance[sem]['subjects'].append({
+                'subject': subject,
+                'present': present,
+                'total': total,
+                'percentage': percentage,
+            })
+            semester_attendance[sem]['present'] += present
+            semester_attendance[sem]['total'] += total
+
+    # Build rows for filtered subjects (based on selected semester)
     for subject in subjects:
         total = attendance_records.filter(subject=subject).count()
         present = attendance_records.filter(subject=subject, is_present=True).count()
-        percentage = (present / total * 100) if total > 0 else 0
-        subject_attendance[subject] = {
-            'total': total,
+        percentage = round((present / total * 100), 2) if total > 0 else 0.0
+
+        rows.append({
+            'subject': subject,
+            'subject_type': subject.subject_type,
             'present': present,
-            'absent': total - present,
-            'percentage': round(percentage, 1)
-        }
-    
+            'total': total,
+            'percentage': percentage,
+            'semester': subject.course.semester,
+        })
+
+        if subject.subject_type in aggregates:
+            aggregates[subject.subject_type]['present'] += present
+            aggregates[subject.subject_type]['total'] += total
+
+    # Calculate percentages for semester-wise data
+    for sem in semester_attendance:
+        sem_data = semester_attendance[sem]
+        if sem_data['total'] > 0:
+            sem_data['percentage'] = round((sem_data['present'] / sem_data['total'] * 100), 2)
+
+    # Compute percentages for aggregates
+    def pct(p, t):
+        return round((p / t * 100), 2) if t > 0 else 0.0
+
+    summary = {
+        'theory': {
+            'present': aggregates['TH']['present'],
+            'total': aggregates['TH']['total'],
+            'percentage': pct(aggregates['TH']['present'], aggregates['TH']['total']),
+        },
+        'practical': {
+            'present': aggregates['PR']['present'],
+            'total': aggregates['PR']['total'],
+            'percentage': pct(aggregates['PR']['present'], aggregates['PR']['total']),
+        },
+        'tutorial': {
+            'present': aggregates['TU']['present'],
+            'total': aggregates['TU']['total'],
+            'percentage': pct(aggregates['TU']['present'], aggregates['TU']['total']),
+        },
+    }
+
+    overall_present = sum(a['present'] for a in aggregates.values())
+    overall_total = sum(a['total'] for a in aggregates.values())
+    summary['overall'] = {
+        'present': overall_present,
+        'total': overall_total,
+        'percentage': pct(overall_present, overall_total),
+    }
+
+    # Get recent attendance records (last 20 records)
+    recent_records = attendance_records[:20]
+    if selected_subject:
+        recent_records = attendance_records.filter(subject=selected_subject)[:20]
+
     context = {
         'student': student,
-        'attendance_records': attendance_records,
-        'subject_attendance': subject_attendance,
+        'rows': rows,
+        'summary': summary,
+        'recent_records': recent_records,
+        'subjects': subjects,
+        'selected_subject': selected_subject,
+        'semesters': semesters,
+        'selected_semester': selected_semester,
+        'current_semester': current_semester,
+        'semester_attendance': semester_attendance,
     }
     return render(request, 'students/attendance.html', context)
 
@@ -218,9 +347,10 @@ def notifications(request):
     
     notifications = Notification.objects.filter(
         Q(target_audience='all') |
+        Q(target_audience='all_students') |
         Q(target_audience='class', target_class=student.student_class) |
         Q(target_audience='department', target_department=student.department) |
-        Q(target_audience='individual', target_student=student)
+        Q(target_audience='individual_student', target_student=student)
     ).order_by('-created_at')
     
     context = {

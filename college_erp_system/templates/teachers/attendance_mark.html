@@ -1,0 +1,104 @@
+{% extends 'base.html' %}
+
+{% block title %}Mark Attendance - {{ subject.course.name }}{% endblock %}
+
+{% block content %}
+<div class="py-4">
+    <h1 class="h2 mb-4">Mark Attendance</h1>
+    
+    <div class="card shadow mb-4">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0">{{ subject.course.name }} - {{ subject.class_assigned }}</h5>
+        </div>
+        <div class="card-body">
+            <p class="mb-3">
+                <strong>Course:</strong> {{ subject.course.code }} - {{ subject.course.name }}<br>
+                <strong>Class:</strong> {{ subject.class_assigned }}<br>
+                <strong>Semester:</strong> {{ subject.course.get_semester_display }}<br>
+                <strong>Date:</strong> {{ date|date:"F d, Y" }}
+            </p>
+        </div>
+    </div>
+
+    <form method="post" action="{% url 'teachers:attendance_mark' subject.id %}">
+        {% csrf_token %}
+        <input type="hidden" name="date" value="{{ date|date:'Y-m-d' }}">
+        
+        <div class="card shadow">
+            <div class="card-header">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0">Student Attendance</h6>
+                    <div>
+                        <button type="button" class="btn btn-sm btn-success" onclick="markAllPresent()">Mark All Present</button>
+                        <button type="button" class="btn btn-sm btn-danger" onclick="markAllAbsent()">Mark All Absent</button>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th width="50">Present</th>
+                                <th>Roll Number</th>
+                                <th>Student Name</th>
+                                <th>Remarks</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in rows %}
+                                <tr>
+                                    <td>
+                                        <div class="form-check">
+                                            <input class="form-check-input attendance-check" 
+                                                   type="checkbox" 
+                                                   name="present" 
+                                                   value="{{ row.student.id }}" 
+                                                   id="present_{{ row.student.id }}"
+                                                   {% if row.is_present %}checked{% endif %}>
+                                        </div>
+                                    </td>
+                                    <td>{{ row.student.roll_number }}</td>
+                                    <td>{{ row.student.user.get_full_name|default:row.student.user.username }}</td>
+                                    <td>
+                                        <input type="text" 
+                                               class="form-control form-control-sm" 
+                                               name="remark_{{ row.student.id }}" 
+                                               value="{{ row.remarks }}" 
+                                               placeholder="Optional remarks">
+                                    </td>
+                                </tr>
+                            {% empty %}
+                                <tr>
+                                    <td colspan="4" class="text-center text-muted">No students found in this class.</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="card-footer">
+                <div class="d-flex justify-content-between">
+                    <a href="{% url 'teachers:attendance' %}" class="btn btn-secondary">Cancel</a>
+                    <button type="submit" class="btn btn-success">Save Attendance</button>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+<script>
+function markAllPresent() {
+    document.querySelectorAll('.attendance-check').forEach(function(checkbox) {
+        checkbox.checked = true;
+    });
+}
+
+function markAllAbsent() {
+    document.querySelectorAll('.attendance-check').forEach(function(checkbox) {
+        checkbox.checked = false;
+    });
+}
+</script>
+{% endblock %}
+
