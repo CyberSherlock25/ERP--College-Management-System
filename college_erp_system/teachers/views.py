@@ -4,7 +4,7 @@ from django.contrib import messages
 from django.utils import timezone
 from django.db import transaction
 
-from academics.models import Class, Subject, Attendance, Course
+from academics.models import Class, Subject, Attendance, Course, Timetable, Exam
 from students.models import Student, Notification
 
 
@@ -33,6 +33,64 @@ def create_attendance_notification(subject, date, marked_by, students):
             is_urgent=False
         )
 
+
+@login_required
+def dashboard(request):
+    """Teacher dashboard with overview similar to student/admin dashboards."""
+    if not request.user.is_teacher:
+        messages.error(request, "Access denied.")
+        return redirect('accounts:login')
+
+    teacher_user = request.user
+
+    # Subjects taught by this teacher
+    subjects = Subject.objects.filter(teacher=teacher_user).select_related('course', 'class_assigned')
+
+    # Classes managed by this teacher as class teacher
+    managed_classes = Class.objects.filter(class_teacher=teacher_user).select_related('department')
+
+    # Today's timetable slots for teacher's subjects
+    today = timezone.now().date()
+    weekday = today.strftime('%A').lower()
+    todays_slots = Timetable.objects.filter(
+        subject__in=subjects,
+        time_slot__day=weekday,
+    ).select_related('subject__course', 'class_assigned', 'time_slot').order_by('time_slot__start_time')
+
+    # Upcoming exams for teacher's subjects
+    upcoming_exams = Exam.objects.filter(
+        subject__in=subjects,
+        date__gte=timezone.now()
+    ).select_related('subject__course').order_by('date')[:5]
+
+    # Recent attendance marked by this teacher
+    recent_marked_attendance = Attendance.objects.filter(
+        marked_by=teacher_user
+    ).select_related('subject__course', 'student').order_by('-date')[:10]
+
+    # Pending attendance to mark today (subjects where no records exist for today)
+    pending_today = []
+    for sub in subjects:
+        has_today = Attendance.objects.filter(subject=sub, date=today).exists()
+        if not has_today:
+            pending_today.append(sub)
+
+    # Notifications targeting teachers
+    teacher_notifications = Notification.objects.filter(
+        # all + all_teachers + department + individual_teacher
+        target_audience__in=['all', 'all_teachers']
+    ).order_by('-created_at')[:5]
+
+    context = {
+        'subjects': subjects,
+        'managed_classes': managed_classes,
+        'todays_slots': todays_slots,
+        'upcoming_exams': upcoming_exams,
+        'recent_marked_attendance': recent_marked_attendance,
+        'pending_today': pending_today,
+        'today': today,
+    }
+    return render(request, 'teachers/dashboard.html', context)
 
 @login_required
 def attendance_select(request):
