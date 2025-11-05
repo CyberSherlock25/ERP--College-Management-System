@@ -76,51 +76,72 @@ class Command(BaseCommand):
             return
         
         # Timetable mapping based on the provided image
-        # Format: (day, start_time, subject_code_pattern, room_number)
+        # Format: (day, start_time, end_time, subject_code_pattern, room_number)
         timetable_mapping = [
-            ('monday', time(11, 30), 'VY 427', None),
-            ('monday', time(14, 30), 'PP - VY 325', None),
-            ('monday', time(15, 30), 'PP - VY 516', None),
+            # Monday
+            ('monday', time(10, 30), time(11, 30), 'LEWT - VY 427', 'VY 427'),
+            ('monday', time(14, 30), time(15, 30), 'PP - VY 515', 'VY 515'),
             
-            ('tuesday', time(11, 30), 'VY 427', None),
-            ('tuesday', time(12, 30), 'FYMCA DIV E', None),
-            ('tuesday', time(14, 30), 'FYMCA DIV D', None),
+            # Tuesday
+            ('tuesday', time(10, 30), time(11, 30), 'LEWT - VY 427', 'VY 427'),
+            ('tuesday', time(11, 30), time(12, 30), 'PP - VY 325', 'VY 325'),
+            ('tuesday', time(14, 30), time(15, 30), 'PP - VY 515', 'VY 515'),
+            ('tuesday', time(15, 30), time(16, 30), 'RJS - VY 403', 'VY 403'),
             
-            ('wednesday', time(12, 30), 'PP - VY 516', None),
-            ('wednesday', time(15, 30), 'FYMCA DIV D', None),
+            # Wednesday
+            ('wednesday', time(11, 30), time(12, 30), 'PP - VY 515', 'VY 515'),
+            ('wednesday', time(12, 30), time(13, 30), 'PP - VY 325', 'VY 325'),
+            ('wednesday', time(15, 30), time(16, 30), 'RJS - VY 403', 'VY 403'),
             
-            ('thursday', time(11, 30), 'PP - VY 516', None),
-            ('thursday', time(12, 30), 'FYMCA DIV D', None),
+            # Thursday
+            ('thursday', time(11, 30), time(12, 30), 'PP - VY 515', 'VY 515'),
+            ('thursday', time(12, 30), time(13, 30), 'PP - VY 325', 'VY 325'),
+            ('thursday', time(15, 30), time(16, 30), 'RJS - VY 403', 'VY 403'),
             
-            ('friday', time(11, 30), 'PP - VY 325', None),
-            ('friday', time(15, 30), 'FYMCA DIV E', None),
+            # Friday
+            ('friday', time(11, 30), time(12, 30), 'PP - VY 325', 'VY 325'),
+            ('friday', time(15, 30), time(16, 30), 'RJS - VY 403', 'VY 403'),
         ]
         
         created_count = 0
-        for day, start_time, subject_pattern, room in timetable_mapping:
+        for day, start_time, end_time, subject_pattern, room in timetable_mapping:
             # Find the appropriate subject (simplified - you may need better matching)
             subject = subjects.first()  # Using first subject as fallback
             
-            # Get the time slot
-            try:
-                time_slot = TimeSlot.objects.get(
-                    day=day,
-                    start_time=start_time
+            # Get or create the time slot
+            time_slot, created = TimeSlot.objects.get_or_create(
+                day=day,
+                start_time=start_time,
+                end_time=end_time
+            )
+            
+            if created:
+                self.stdout.write(
+                    self.style.SUCCESS(
+                        f'Created time slot: {day} {start_time}-{end_time}'
+                    )
                 )
-                
+            
+            # Create teacher timetable entry
+            try:
                 TeacherTimetable.objects.create(
                     teacher=teacher,
                     subject=subject,
                     time_slot=time_slot,
-                    room_number=room or subject_pattern,
+                    room_number=room,
                     academic_year='2025-2026'
                 )
                 created_count += 1
+                self.stdout.write(
+                    self.style.SUCCESS(
+                        f'Added: {day.title()} {start_time} - {subject_pattern} in {room}'
+                    )
+                )
                 
-            except TimeSlot.DoesNotExist:
+            except Exception as e:
                 self.stdout.write(
                     self.style.WARNING(
-                        f'Time slot not found: {day} {start_time}'
+                        f'Error creating entry: {day} {start_time} - {str(e)}'
                     )
                 )
                 continue

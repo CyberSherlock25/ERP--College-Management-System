@@ -84,3 +84,10 @@ class TeacherTimetableAdmin(admin.ModelAdmin):
     list_filter = ['academic_year', 'time_slot__day', 'teacher']
     search_fields = ['teacher__username', 'teacher__first_name', 'teacher__last_name', 'subject__course__name', 'room_number']
     ordering = ['time_slot__day', 'time_slot__start_time']
+    
+    def get_form(self, request, obj=None, **kwargs):
+        form = super().get_form(request, obj, **kwargs)
+        # Make academic_year default to current year
+        if not obj:
+            form.base_fields['academic_year'].initial = '2025-2026'
+        return form

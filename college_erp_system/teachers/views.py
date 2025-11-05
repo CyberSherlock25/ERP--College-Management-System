@@ -239,15 +239,19 @@ def teacher_timetable(request):
     organized_timetable = {}
     
     for day in days:
-        organized_timetable[day] = teacher_timetable.filter(time_slot__day=day)
+        organized_timetable[day] = list(teacher_timetable.filter(time_slot__day=day))
     
-    # Get all unique time slots
-    time_slots = teacher_timetable.values_list(
-        'time_slot__start_time', 'time_slot__end_time'
-    ).distinct().order_by('time_slot__start_time')
+    # Get all unique time slots ordered by start time
+    time_slots_set = set()
+    for entry in teacher_timetable:
+        time_slots_set.add((entry.time_slot.start_time, entry.time_slot.end_time))
+    
+    time_slots = sorted(list(time_slots_set), key=lambda x: x[0])
     
     # Get unique academic years
     academic_years = TeacherTimetable.objects.values_list('academic_year', flat=True).distinct()
+    if not academic_years:
+        academic_years = ['2025-2026']  # Default year
     
     context = {
         'teacher_timetable': teacher_timetable,
