@@ -9,7 +9,7 @@ def placeholder_view(request):
 
 urlpatterns = [
     path('dashboard/', views.dashboard, name='dashboard'),
-    path('timetable/', placeholder_view, name='timetable'),
+    path('timetable/', views.teacher_timetable, name='timetable'),
     path('attendance/', views.attendance_select, name='attendance'),
     path('attendance/<int:subject_id>/', views.attendance_mark, name='attendance_mark'),
     path('exams/', placeholder_view, name='exams'),

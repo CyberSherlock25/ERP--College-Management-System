@@ -6,7 +6,7 @@ from django.utils import timezone
 from datetime import datetime, timedelta
 
 from academics.models import (
-    Timetable, Attendance, Exam, Result, Fee, Subject, Course
+    Timetable, Attendance, Exam, Result, Fee, Subject, Course, AcademicCalendar, TeacherTimetable
 )
 from .models import Student, Notification
 
@@ -49,12 +49,26 @@ def dashboard(request):
         Q(target_audience='individual_student', target_student=student)
     ).order_by('-created_at')[:5]
     
+    # Get upcoming academic calendar events
+    today = timezone.now().date()
+    upcoming_calendar_events = AcademicCalendar.objects.filter(
+        start_date__gte=today
+    ).order_by('start_date')[:5]
+    
+    # Get current ongoing events
+    ongoing_events = AcademicCalendar.objects.filter(
+        start_date__lte=today,
+        end_date__gte=today
+    ).order_by('start_date')
+    
     context = {
         'student': student,
         'attendance_percentage': round(attendance_percentage, 1),
         'upcoming_exams': upcoming_exams,
         'pending_fees': pending_fees,
         'recent_notifications': recent_notifications,
+        'upcoming_calendar_events': upcoming_calendar_events,
+        'ongoing_events': ongoing_events,
     }
     return render(request, 'students/dashboard.html', context)
 
@@ -358,3 +372,40 @@ def notifications(request):
         'notifications': notifications,
     }
     return render(request, 'students/notifications.html', context)
+
+@login_required
+def academic_calendar(request):
+    """Display academic calendar for student"""
+    if not request.user.is_student:
+        messages.error(request, "Access denied.")
+        return redirect('accounts:login')
+    
+    student = request.user.student_profile
+    
+    # Get filter parameters
+    selected_year = request.GET.get('year', '2025-2026')
+    
+    # Get all academic calendar events
+    calendar_events = AcademicCalendar.objects.filter(
+        academic_year=selected_year
+    ).order_by('start_date')
+    
+    # Get unique academic years
+    academic_years = AcademicCalendar.objects.values_list('academic_year', flat=True).distinct()
+    
+    # Categorize events
+    categorized_events = {}
+    for event in calendar_events:
+        category = event.get_category_display()
+        if category not in categorized_events:
+            categorized_events[category] = []
+        categorized_events[category].append(event)
+    
+    context = {
+        'student': student,
+        'calendar_events': calendar_events,
+        'categorized_events': categorized_events,
+        'academic_years': academic_years,
+        'selected_year': selected_year,
+    }
+    return render(request, 'students/academic_calendar.html', context)

@@ -323,6 +323,97 @@
         </div>
     </div>
     
+    <!-- Academic Calendar Widget -->
+    <div class="row mb-4">
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow-lg h-100">
+                <div class="card-header bg-gradient" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                    <h5 class="m-0 d-flex align-items-center justify-content-between">
+                        <span><i class="bi bi-calendar3 me-2"></i>Academic Calendar</span>
+                        <a href="{% url 'students:academic_calendar' %}" class="btn btn-sm btn-light">View All</a>
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if ongoing_events %}
+                        <div class="mb-3">
+                            <h6 class="fw-bold text-success"><i class="bi bi-circle-fill"></i> Ongoing</h6>
+                            {% for event in ongoing_events %}
+                            <div class="alert alert-success mb-2">
+                                <strong>{{ event.title }}</strong><br>
+                                <small><i class="bi bi-calendar-event"></i> {{ event.start_date|date:"M d" }} - {{ event.end_date|date:"M d, Y" }}</small>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                    
+                    {% if upcoming_calendar_events %}
+                        <h6 class="fw-bold text-primary"><i class="bi bi-arrow-right-circle"></i> Upcoming Events</h6>
+                        <ul class="list-group list-group-flush">
+                            {% for event in upcoming_calendar_events %}
+                            <li class="list-group-item">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <strong>{{ event.title }}</strong><br>
+                                        <small class="text-muted">
+                                            <i class="bi bi-calendar-event"></i> {{ event.start_date|date:"M d, Y" }}
+                                        </small>
+                                    </div>
+                                    <span class="badge 
+                                        {% if event.category == 'vacation' %}bg-success
+                                        {% elif event.category == 'exam_mid' or event.category == 'exam_regular' %}bg-warning
+                                        {% else %}bg-secondary
+                                        {% endif %}">
+                                        {{ event.get_category_display }}
+                                    </span>
+                                </div>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <div class="text-center py-3">
+                            <i class="bi bi-calendar-x fs-1 text-muted mb-2 d-block"></i>
+                            <p class="text-muted">No upcoming events</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Quick Links -->
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow-lg h-100">
+                <div class="card-header bg-dark text-white">
+                    <h5 class="m-0 d-flex align-items-center">
+                        <i class="bi bi-link-45deg me-2"></i>
+                        Quick Links
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="list-group list-group-flush">
+                        <a href="{% url 'students:timetable' %}" class="list-group-item list-group-item-action">
+                            <i class="bi bi-calendar-week text-primary"></i> View My Timetable
+                        </a>
+                        <a href="{% url 'students:attendance' %}" class="list-group-item list-group-item-action">
+                            <i class="bi bi-check2-square text-success"></i> Check Attendance
+                        </a>
+                        <a href="{% url 'students:exams' %}" class="list-group-item list-group-item-action">
+                            <i class="bi bi-file-earmark-text text-warning"></i> View Exams
+                        </a>
+                        <a href="{% url 'students:results' %}" class="list-group-item list-group-item-action">
+                            <i class="bi bi-trophy text-info"></i> Check Results
+                        </a>
+                        <a href="{% url 'students:fees' %}" class="list-group-item list-group-item-action">
+                            <i class="bi bi-credit-card text-danger"></i> Fee Details
+                        </a>
+                        <a href="{% url 'students:academic_calendar' %}" class="list-group-item list-group-item-action">
+                            <i class="bi bi-calendar3 text-primary"></i> Academic Calendar
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
     <!-- Student Info -->
     <div class="row">
         <div class="col-12">

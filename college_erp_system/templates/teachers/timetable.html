@@ -1,0 +1,135 @@
+{% extends 'base.html' %}
+
+{% block title %}My Timetable{% endblock %}
+
+{% block content %}
+<div class="py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h2"><i class="bi bi-calendar-week"></i> My Teaching Schedule</h1>
+        <div>
+            <form method="get" class="d-inline-block">
+                <select name="year" class="form-select" onchange="this.form.submit()">
+                    {% for year in academic_years %}
+                        <option value="{{ year }}" {% if year == selected_year %}selected{% endif %}>{{ year }}</option>
+                    {% empty %}
+                        <option value="2025-2026" selected>2025-2026</option>
+                    {% endfor %}
+                </select>
+            </form>
+        </div>
+    </div>
+    
+    {% if teacher_timetable %}
+        <div class="card shadow-lg">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="bi bi-person-badge"></i> {{ user.get_full_name }}'s Timetable</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-bordered table-hover">
+                        <thead class="table-dark">
+                            <tr>
+                                <th style="width: 150px;">Time</th>
+                                {% for day in days %}
+                                    <th class="text-center">{{ day|title }}</th>
+                                {% endfor %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for start_time, end_time in time_slots %}
+                            <tr>
+                                <td class="fw-bold">
+                                    {{ start_time|time:"g:i A" }} - {{ end_time|time:"g:i A" }}
+                                </td>
+                                {% for day in days %}
+                                    <td class="text-center">
+                                        {% for schedule in organized_timetable|lookup:day %}
+                                            {% if schedule.time_slot.start_time == start_time and schedule.time_slot.end_time == end_time %}
+                                                <div class="timetable-cell p-2 rounded" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                                                    <div class="fw-bold">{{ schedule.subject.course.code }}</div>
+                                                    <small>{{ schedule.subject.course.name }}</small><br>
+                                                    <small><i class="bi bi-people"></i> {{ schedule.subject.class_assigned }}</small><br>
+                                                    <small><i class="bi bi-door-closed"></i> Room: {{ schedule.room_number|default:"TBA" }}</small>
+                                                </div>
+                                            {% endif %}
+                                        {% endfor %}
+                                    </td>
+                                {% endfor %}
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="7" class="text-center text-muted py-4">
+                                    <i class="bi bi-calendar-x fs-1 d-block mb-2"></i>
+                                    No timetable slots available
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Schedule Summary -->
+        <div class="row mt-4">
+            <div class="col-md-12">
+                <div class="card shadow">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="mb-0"><i class="bi bi-list-ul"></i> Class Schedule Summary</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Day</th>
+                                        <th>Time</th>
+                                        <th>Subject</th>
+                                        <th>Class</th>
+                                        <th>Room</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for schedule in teacher_timetable %}
+                                    <tr>
+                                        <td class="fw-bold">{{ schedule.time_slot.get_day_display }}</td>
+                                        <td>{{ schedule.time_slot.start_time|time:"g:i A" }} - {{ schedule.time_slot.end_time|time:"g:i A" }}</td>
+                                        <td>
+                                            <strong>{{ schedule.subject.course.code }}</strong> - {{ schedule.subject.course.name }}<br>
+                                            <span class="badge bg-secondary">{{ schedule.subject.get_subject_type_display }}</span>
+                                        </td>
+                                        <td>{{ schedule.subject.class_assigned }}</td>
+                                        <td><i class="bi bi-door-closed"></i> {{ schedule.room_number|default:"TBA" }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% else %}
+        <div class="alert alert-warning">
+            <i class="bi bi-exclamation-triangle"></i>
+            No timetable available for academic year {{ selected_year }}. Please contact the administration.
+        </div>
+    {% endif %}
+</div>
+
+<style>
+.timetable-cell {
+    min-height: 100px;
+    transition: all 0.3s ease;
+}
+
+.timetable-cell:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+}
+
+td {
+    vertical-align: middle;
+}
+</style>
+{% endblock %}

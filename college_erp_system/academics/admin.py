@@ -1,7 +1,8 @@
 from django.contrib import admin
 from .models import (
     Department, Course, Class, Subject, TimeSlot, 
-    Timetable, Attendance, Exam, Result, Fee
+    Timetable, Attendance, Exam, Result, Fee,
+    AcademicCalendar, TeacherTimetable
 )
 
 @admin.register(Department)
@@ -68,3 +69,18 @@ class FeeAdmin(admin.ModelAdmin):
     search_fields = ['student__username', 'transaction_id']
     date_hierarchy = 'due_date'
     list_editable = ['payment_status']
+
+@admin.register(AcademicCalendar)
+class AcademicCalendarAdmin(admin.ModelAdmin):
+    list_display = ['title', 'category', 'start_date', 'end_date', 'academic_year', 'instructional_days', 'working_days']
+    list_filter = ['category', 'academic_year', 'start_date']
+    search_fields = ['title', 'remarks']
+    date_hierarchy = 'start_date'
+    list_editable = ['instructional_days', 'working_days']
+
+@admin.register(TeacherTimetable)
+class TeacherTimetableAdmin(admin.ModelAdmin):
+    list_display = ['teacher', 'subject', 'time_slot', 'room_number', 'academic_year']
+    list_filter = ['academic_year', 'time_slot__day', 'teacher']
+    search_fields = ['teacher__username', 'teacher__first_name', 'teacher__last_name', 'subject__course__name', 'room_number']
+    ordering = ['time_slot__day', 'time_slot__start_time']

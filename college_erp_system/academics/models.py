@@ -267,3 +267,52 @@ class Fee(models.Model):
     @property
     def is_overdue(self):
         return self.due_date < timezone.now().date() and self.payment_status != 'paid'
+
+class AcademicCalendar(models.Model):
+    """Academic Calendar for storing important academic events and dates"""
+    EVENT_CATEGORY_CHOICES = [
+        ('term', 'Term'),
+        ('induction', 'Induction'),
+        ('instruction', 'Instruction'),
+        ('exam_mid', 'Mid Term Exam'),
+        ('exam_backlog', 'Term End Exam (Backlog)'),
+        ('exam_regular', 'Term End Exam (Regular)'),
+        ('vacation', 'Vacation'),
+        ('holiday', 'Holiday'),
+        ('other', 'Other'),
+    ]
+    
+    title = models.CharField(max_length=200)
+    start_date = models.DateField()
+    end_date = models.DateField()
+    remarks = models.CharField(max_length=200, blank=True)
+    category = models.CharField(max_length=20, choices=EVENT_CATEGORY_CHOICES, default='other')
+    academic_year = models.CharField(max_length=9)  # e.g., "2025-2026"
+    instructional_days = models.IntegerField(null=True, blank=True)  # For tracking instructional days
+    working_days = models.IntegerField(null=True, blank=True)  # For tracking working days
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['start_date']
+    
+    def __str__(self):
+        return f"{self.title} ({self.start_date} to {self.end_date})"
+
+class TeacherTimetable(models.Model):
+    """Timetable specifically for teachers to track their personal schedule"""
+    teacher = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='teacher_timetable'
+    )
+    subject = models.ForeignKey(Subject, on_delete=models.CASCADE)
+    time_slot = models.ForeignKey(TimeSlot, on_delete=models.CASCADE)
+    room_number = models.CharField(max_length=20, blank=True)
+    academic_year = models.CharField(max_length=9)  # e.g., "2025-2026"
+    
+    class Meta:
+        unique_together = ['teacher', 'time_slot', 'academic_year']
+        ordering = ['time_slot__day', 'time_slot__start_time']
+    
+    def __str__(self):
+        return f"{self.teacher.get_full_name()} - {self.subject.course.code} - {self.time_slot}"

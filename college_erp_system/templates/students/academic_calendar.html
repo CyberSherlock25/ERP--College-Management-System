@@ -1,0 +1,110 @@
+{% extends 'base.html' %}
+
+{% block title %}Academic Calendar{% endblock %}
+
+{% block content %}
+<div class="py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h2">Academic Calendar - {{ selected_year }}</h1>
+        <div>
+            <form method="get" class="d-inline-block">
+                <select name="year" class="form-select" onchange="this.form.submit()">
+                    {% for year in academic_years %}
+                        <option value="{{ year }}" {% if year == selected_year %}selected{% endif %}>{{ year }}</option>
+                    {% endfor %}
+                </select>
+            </form>
+        </div>
+    </div>
+    
+    {% if calendar_events %}
+        <div class="card shadow-lg">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="bi bi-calendar3"></i> Academic Year {{ selected_year }}</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover table-bordered mb-0">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Event Details</th>
+                                <th>Start Date</th>
+                                <th>End Date</th>
+                                <th>Remarks</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for event in calendar_events %}
+                            <tr class="{% if event.category == 'vacation' %}table-success{% elif event.category == 'exam_mid' or event.category == 'exam_regular' or event.category == 'exam_backlog' %}table-warning{% endif %}">
+                                <td>
+                                    <strong>{{ event.title }}</strong><br>
+                                    <span class="badge 
+                                        {% if event.category == 'term' %}bg-primary
+                                        {% elif event.category == 'vacation' %}bg-success
+                                        {% elif event.category == 'exam_mid' or event.category == 'exam_regular' or event.category == 'exam_backlog' %}bg-warning
+                                        {% elif event.category == 'instruction' %}bg-info
+                                        {% else %}bg-secondary
+                                        {% endif %}">
+                                        {{ event.get_category_display }}
+                                    </span>
+                                </td>
+                                <td>{{ event.start_date|date:"d M Y" }}</td>
+                                <td>{{ event.end_date|date:"d M Y" }}</td>
+                                <td>
+                                    {{ event.remarks }}
+                                    {% if event.instructional_days %}
+                                        <br><small class="text-muted">{{ event.instructional_days }} Instructional Days</small>
+                                    {% endif %}
+                                    {% if event.working_days %}
+                                        <br><small class="text-muted">{{ event.working_days }} Working Days</small>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Categorized View -->
+        <div class="row mt-4">
+            {% for category, events in categorized_events.items %}
+            <div class="col-md-6 mb-4">
+                <div class="card shadow">
+                    <div class="card-header 
+                        {% if 'Vacation' in category %}bg-success
+                        {% elif 'Exam' in category %}bg-warning
+                        {% elif 'Instruction' in category %}bg-info
+                        {% else %}bg-secondary
+                        {% endif %} text-white">
+                        <h6 class="mb-0"><i class="bi bi-bookmark-fill"></i> {{ category }}</h6>
+                    </div>
+                    <div class="card-body">
+                        <ul class="list-group list-group-flush">
+                            {% for event in events %}
+                            <li class="list-group-item">
+                                <strong>{{ event.title }}</strong><br>
+                                <small class="text-muted">
+                                    <i class="bi bi-calendar-event"></i> 
+                                    {{ event.start_date|date:"d M Y" }} - {{ event.end_date|date:"d M Y" }}
+                                </small>
+                                {% if event.remarks %}
+                                <br><small>{{ event.remarks }}</small>
+                                {% endif %}
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="alert alert-warning">
+            <i class="bi bi-exclamation-triangle"></i>
+            No academic calendar events available for {{ selected_year }}.
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

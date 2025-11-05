@@ -4,7 +4,7 @@ from django.contrib import messages
 from django.utils import timezone
 from django.db import transaction
 
-from academics.models import Class, Subject, Attendance, Course, Timetable, Exam
+from academics.models import Class, Subject, Attendance, Course, Timetable, Exam, TeacherTimetable, AcademicCalendar
 from students.models import Student, Notification
 
 
@@ -213,3 +213,48 @@ def attendance_mark(request, subject_id):
         'rows': rows,
     }
     return render(request, 'teachers/attendance_mark.html', context)
+
+@login_required
+def teacher_timetable(request):
+    """Display teacher's personal timetable"""
+    if not request.user.is_teacher:
+        messages.error(request, "Access denied.")
+        return redirect('accounts:login')
+    
+    teacher_user = request.user
+    
+    # Get filter parameters
+    selected_year = request.GET.get('year', '2025-2026')
+    
+    # Get teacher's timetable
+    teacher_timetable = TeacherTimetable.objects.filter(
+        teacher=teacher_user,
+        academic_year=selected_year
+    ).select_related('subject__course', 'subject__class_assigned', 'time_slot').order_by(
+        'time_slot__day', 'time_slot__start_time'
+    )
+    
+    # Organize timetable by day
+    days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
+    organized_timetable = {}
+    
+    for day in days:
+        organized_timetable[day] = teacher_timetable.filter(time_slot__day=day)
+    
+    # Get all unique time slots
+    time_slots = teacher_timetable.values_list(
+        'time_slot__start_time', 'time_slot__end_time'
+    ).distinct().order_by('time_slot__start_time')
+    
+    # Get unique academic years
+    academic_years = TeacherTimetable.objects.values_list('academic_year', flat=True).distinct()
+    
+    context = {
+        'teacher_timetable': teacher_timetable,
+        'organized_timetable': organized_timetable,
+        'days': days,
+        'time_slots': time_slots,
+        'academic_years': academic_years,
+        'selected_year': selected_year,
+    }
+    return render(request, 'teachers/timetable.html', context)
