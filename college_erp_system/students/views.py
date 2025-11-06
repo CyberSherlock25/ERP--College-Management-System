@@ -5,6 +5,7 @@ from django.db.models import Q, Avg, F
 from django.db import models
 from django.utils import timezone
 from datetime import datetime, timedelta
+from decimal import Decimal
 
 from academics.models import (
     Timetable, Attendance, Exam, Result, Fee, Subject, Course, AcademicCalendar
@@ -348,6 +349,9 @@ def fees(request):
         messages.error(request, "Access denied.")
         return redirect('accounts:login')
     
+    from academics.models import PaymentMethod, Transaction
+    import uuid
+    
     student = request.user.student_profile
     
     all_fees = Fee.objects.filter(
@@ -356,42 +360,88 @@ def fees(request):
     
     pending_fees = all_fees.filter(payment_status__in=['pending', 'overdue'])
     paid_fees = all_fees.filter(payment_status='paid')
+    partial_fees = all_fees.filter(payment_status='partial')
     
     # Calculate totals
     total_pending = sum([fee.amount for fee in pending_fees])
     total_paid = sum([fee.amount for fee in paid_fees])
+    total_partial = sum([fee.amount for fee in partial_fees])
+    total_fees_amount = total_pending + total_paid + total_partial
+    
+    # Get available payment methods
+    payment_methods = PaymentMethod.objects.filter(is_active=True)
     
     # Handle payment processing
     if request.method == 'POST':
         fee_id = request.POST.get('fee_id')
-        payment_method = request.POST.get('payment_method', 'online')
+        payment_method_id = request.POST.get('payment_method_id')
+        amount = request.POST.get('amount')
+        reference_number = request.POST.get('reference_number', '')
         
         try:
             fee = Fee.objects.get(id=fee_id, student=request.user)
+            payment_method = PaymentMethod.objects.get(id=payment_method_id) if payment_method_id else None
             
-            if fee.payment_status != 'paid':
-                # Update fee status
-                fee.payment_status = 'paid'
-                fee.payment_date = timezone.now().date()
-                fee.payment_method = payment_method
-                fee.transaction_id = f"TXN-{fee.id}-{timezone.now().timestamp()}"
-                fee.save()
-                
-                messages.success(request, f"Payment of ₹{fee.amount} successful! Receipt has been generated.")
-            else:
+            if fee.payment_status == 'paid':
                 messages.info(request, "This fee has already been paid.")
+            else:
+                try:
+                    amount_decimal = Decimal(amount)
+                except:
+                    messages.error(request, "Invalid amount entered.")
+                    return redirect('students:fees')
+                
+                # Create transaction
+                transaction_id = f"TXN-{uuid.uuid4().hex[:12].upper()}"
+                transaction = Transaction.objects.create(
+                    fee=fee,
+                    payment_method=payment_method,
+                    amount=amount_decimal,
+                    status='completed',
+                    transaction_id=transaction_id,
+                    reference_number=reference_number,
+                    completed_at=timezone.now()
+                )
+                
+                # Update fee status based on amount
+                if amount_decimal >= fee.amount:
+                    fee.payment_status = 'paid'
+                    fee.payment_date = timezone.now().date()
+                    messages.success(request, f"✅ Full payment of ₹{amount_decimal} successful!\nTransaction ID: {transaction_id}\nReceipt has been generated.")
+                elif amount_decimal > 0:
+                    fee.payment_status = 'partial'
+                    messages.success(request, f"✅ Partial payment of ₹{amount_decimal} received!\nTransaction ID: {transaction_id}\nRemaining: ₹{fee.amount - amount_decimal}")
+                
+                fee.payment_method = payment_method.get_method_type_display() if payment_method else 'Online'
+                fee.transaction_id = transaction_id
+                fee.save()
+        
         except Fee.DoesNotExist:
             messages.error(request, "Fee not found.")
+        except PaymentMethod.DoesNotExist:
+            messages.error(request, "Payment method not found.")
+        except Exception as e:
+            messages.error(request, f"Error processing payment: {str(e)}")
         
         return redirect('students:fees')
+    
+    # Get transaction history for paid fees
+    transactions = Transaction.objects.filter(
+        fee__student=request.user
+    ).select_related('payment_method').order_by('-created_at')[:20]
     
     context = {
         'student': student,
         'all_fees': all_fees,
         'pending_fees': pending_fees,
         'paid_fees': paid_fees,
+        'partial_fees': partial_fees,
         'total_pending': total_pending,
         'total_paid': total_paid,
+        'total_partial': total_partial,
+        'total_fees_amount': total_fees_amount,
+        'payment_methods': payment_methods,
+        'transactions': transactions,
     }
     return render(request, 'students/fees.html', context)
 

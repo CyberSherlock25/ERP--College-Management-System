@@ -1,0 +1,308 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Fee Management - Administration{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <h1 class="mb-4"><i class="fas fa-money-bill-wave"></i> Fee Management</h1>
+        </div>
+    </div>
+
+    <!-- Status Summary Cards -->
+    <div class="row mb-4">
+        {% for status in status_summary %}
+        <div class="col-md-3">
+            <div class="card {% if status.payment_status == 'paid' %}border-success{% elif status.payment_status == 'pending' %}border-warning{% else %}border-danger{% endif %}">
+                <div class="card-body">
+                    <h6 class="card-title text-muted">{{ status.payment_status|title }}</h6>
+                    <h3 class="card-text">₹{{ status.total|default:"0" }}</h3>
+                    <small class="text-muted">{{ status.count }} fees</small>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Filters -->
+    <div class="card mb-4">
+        <div class="card-header bg-primary text-white">
+            <h6 class="mb-0"><i class="fas fa-filter"></i> Filters</h6>
+        </div>
+        <div class="card-body">
+            <form method="GET" class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">Payment Status</label>
+                    <select name="status" class="form-select">
+                        <option value="all" {% if payment_status == 'all' %}selected{% endif %}>All Statuses</option>
+                        <option value="paid" {% if payment_status == 'paid' %}selected{% endif %}>Paid</option>
+                        <option value="pending" {% if payment_status == 'pending' %}selected{% endif %}>Pending</option>
+                        <option value="overdue" {% if payment_status == 'overdue' %}selected{% endif %}>Overdue</option>
+                        <option value="partial" {% if payment_status == 'partial' %}selected{% endif %}>Partial</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Academic Year</label>
+                    <input type="text" name="academic_year" class="form-control" value="{{ academic_year }}" placeholder="e.g., 2024-2025">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Search Student</label>
+                    <input type="text" name="student_search" class="form-control" value="{{ student_search }}" placeholder="Name, Roll No., Username">
+                </div>
+                <div class="col-md-12">
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i> Filter</button>
+                    <a href="{% url 'administration:fee_management' %}" class="btn btn-secondary"><i class="fas fa-redo"></i> Reset</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Bulk Assign Fees Section -->
+    <div class="card mb-4">
+        <div class="card-header bg-success text-white">
+            <h6 class="mb-0"><i class="fas fa-plus-circle"></i> Bulk Assign Fees to Students</h6>
+        </div>
+        <div class="card-body">
+            <form method="POST" action="{% url 'administration:bulk_assign_fees' %}" class="row g-3">
+                {% csrf_token %}
+                
+                <div class="col-md-3">
+                    <label class="form-label"><strong>Department</strong></label>
+                    <select id="departmentFilter" name="department" class="form-select">
+                        <option value="">-- All Departments --</option>
+                        {% for dept in departments %}
+                        <option value="{{ dept.id }}">{{ dept.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label"><strong>Select Student(s)</strong></label>
+                    <select id="studentSelect" name="student_ids" class="form-select" multiple required>
+                        <option value="">-- Select Students --</option>
+                    </select>
+                    <small class="form-text text-muted">Use Ctrl+Click for multiple selection</small>
+                </div>
+
+                <div class="col-md-2">
+                    <label class="form-label"><strong>Fee Type</strong></label>
+                    <select name="fee_type" class="form-select" required>
+                        <option value="">-- Select Type --</option>
+                        <option value="tuition">Tuition Fee</option>
+                        <option value="library">Library Fee</option>
+                        <option value="lab">Laboratory Fee</option>
+                        <option value="exam">Examination Fee</option>
+                        <option value="development">Development Fee</option>
+                        <option value="other">Other Fee</option>
+                    </select>
+                </div>
+
+                <div class="col-md-2">
+                    <label class="form-label"><strong>Amount (₹)</strong></label>
+                    <input type="number" name="amount" class="form-control" step="0.01" placeholder="Amount" required>
+                </div>
+
+                <div class="col-md-2">
+                    <label class="form-label"><strong>Due Date</strong></label>
+                    <input type="date" name="due_date" class="form-control" required>
+                </div>
+
+                <div class="col-md-2">
+                    <label class="form-label"><strong>Academic Year</strong></label>
+                    <input type="text" name="academic_year" class="form-control" value="2025-2026" placeholder="2025-2026" required>
+                </div>
+
+                <div class="col-md-2">
+                    <label class="form-label"><strong>Semester</strong></label>
+                    <select name="semester" class="form-select" required>
+                        <option value="">-- Select --</option>
+                        <option value="1">1st</option>
+                        <option value="2">2nd</option>
+                        <option value="3">3rd</option>
+                        <option value="4">4th</option>
+                        <option value="5">5th</option>
+                        <option value="6">6th</option>
+                        <option value="7">7th</option>
+                        <option value="8">8th</option>
+                    </select>
+                </div>
+
+                <div class="col-md-12">
+                    <button type="submit" class="btn btn-success"><i class="fas fa-check-circle"></i> Assign Fees</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Overdue Fees Alert -->
+    {% if overdue_fees %}
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <h6><i class="fas fa-exclamation-triangle"></i> <strong>{{ overdue_fees.count }} Overdue Fees</strong></h6>
+        <p class="mb-0">Total overdue amount: <strong>₹{{ total_overdue_amount }}</strong></p>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endif %}
+
+    <!-- Fees Table -->
+    <div class="card">
+        <div class="card-header bg-primary text-white">
+            <h6 class="mb-0"><i class="fas fa-list"></i> Fees Records ({{ fees.count }})</h6>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover table-striped">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Student Name</th>
+                            <th>Roll Number</th>
+                            <th>Fee Type</th>
+                            <th>Amount</th>
+                            <th>Due Date</th>
+                            <th>Status</th>
+                            <th>Payment Method</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for fee in fees %}
+                        <tr>
+                            <td>
+                                <strong>{{ fee.student.get_full_name }}</strong>
+                            </td>
+                            <td>{{ fee.student.student_profile.roll_number }}</td>
+                            <td>{{ fee.get_fee_type_display }}</td>
+                            <td><strong>₹{{ fee.amount }}</strong></td>
+                            <td>{{ fee.due_date|date:"d M Y" }}</td>
+                            <td>
+                                <span class="badge bg-{% if fee.payment_status == 'paid' %}success{% elif fee.payment_status == 'overdue' %}danger{% elif fee.payment_status == 'partial' %}warning{% else %}secondary{% endif %}">
+                                    {{ fee.get_payment_status_display }}
+                                </span>
+                                {% if fee.is_overdue %}
+                                <span class="badge bg-danger">OVERDUE</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ fee.payment_method|default:"—" }}</td>
+                            <td>
+                                <button type="button" class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#processPaymentModal" data-fee-id="{{ fee.id }}" data-student="{{ fee.student.get_full_name }}" data-amount="{{ fee.amount }}">
+                                    <i class="fas fa-wallet"></i> Process
+                                </button>
+                                <a href="{% url 'administration:student_fee_details' fee.student.id %}" class="btn btn-sm btn-secondary">
+                                    <i class="fas fa-eye"></i> Details
+                                </a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="8" class="text-center py-4 text-muted">No fees found.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Process Payment Modal -->
+<div class="modal fade" id="processPaymentModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title"><i class="fas fa-credit-card"></i> Process Payment</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{% url 'administration:process_payment' %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label"><strong>Student</strong></label>
+                        <input type="text" class="form-control" id="studentName" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label"><strong>Fee Amount</strong></label>
+                        <input type="text" class="form-control" id="feeAmount" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label"><strong>Payment Amount</strong></label>
+                        <input type="number" name="amount" class="form-control" step="0.01" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label"><strong>Payment Method</strong></label>
+                        <select name="payment_method_id" class="form-select" required>
+                            <option value="">Select Payment Method</option>
+                            {% for method in payment_methods %}
+                            <option value="{{ method.id }}">{{ method.name }} ({{ method.get_method_type_display }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label"><strong>Reference Number</strong></label>
+                        <input type="text" name="reference_number" class="form-control" placeholder="e.g., Cheque #, DD #, UPI ID">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label"><strong>Notes</strong></label>
+                        <textarea name="notes" class="form-control" rows="2" placeholder="Additional notes..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <input type="hidden" name="fee_id" id="feeId">
+                    <button type="submit" class="btn btn-success"><i class="fas fa-check"></i> Process Payment</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+$(document).ready(function() {
+    // Load students when department changes
+    $('#departmentFilter').on('change', function() {
+        const deptId = $(this).val();
+        const studentSelect = $('#studentSelect');
+        
+        studentSelect.html('<option value="">Loading...</option>');
+        
+        if (!deptId) {
+            studentSelect.html('<option value="">-- Select Department First --</option>');
+            return;
+        }
+        
+        $.ajax({
+            url: '{% url "administration:search_students_api" %}',
+            type: 'GET',
+            data: { 'department': deptId },
+            success: function(data) {
+                let options = '<option value="">-- Select Students --</option>';
+                if (data.results.length === 0) {
+                    options = '<option value="">No students found</option>';
+                } else {
+                    data.results.forEach(function(student) {
+                        options += `<option value="${student.id}">${student.name} (${student.roll_number})</option>`;
+                    });
+                }
+                studentSelect.html(options);
+            },
+            error: function() {
+                studentSelect.html('<option value="">Error loading students</option>');
+            }
+        });
+    });
+});
+
+document.addEventListener('DOMContentLoaded', function() {
+    const modal = document.getElementById('processPaymentModal');
+    if (modal) {
+        modal.addEventListener('show.bs.modal', function(e) {
+            const button = e.relatedTarget;
+            document.getElementById('feeId').value = button.getAttribute('data-fee-id');
+            document.getElementById('studentName').value = button.getAttribute('data-student');
+            document.getElementById('feeAmount').value = '₹' + button.getAttribute('data-amount');
+        });
+    }
+});
+</script>
+{% endblock %}

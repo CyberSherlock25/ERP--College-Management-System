@@ -1,0 +1,219 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Student Fee Details - Administration{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <h1 class="mb-4">
+                <i class="fas fa-file-invoice-dollar"></i> Fee Details for {{ student_user.get_full_name }}
+            </h1>
+        </div>
+    </div>
+
+    <!-- Student Info Card -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h6 class="mb-0"><i class="fas fa-id-card"></i> Student Information</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <p><strong>Name:</strong> {{ student_user.get_full_name }}</p>
+                            <p><strong>Email:</strong> {{ student_user.email }}</p>
+                        </div>
+                        <div class="col-md-3">
+                            <p><strong>Roll Number:</strong> {{ student.roll_number }}</p>
+                            <p><strong>Admission Number:</strong> {{ student.admission_number }}</p>
+                        </div>
+                        <div class="col-md-3">
+                            <p><strong>Department:</strong> {{ student.department.name }}</p>
+                            <p><strong>Class:</strong> {{ student.student_class|default:"Not Assigned" }}</p>
+                        </div>
+                        <div class="col-md-3">
+                            <p><strong>Admission Date:</strong> {{ student.admission_date|date:"d M Y" }}</p>
+                            <p><strong>Status:</strong> 
+                                <span class="badge bg-{% if student.is_active %}success{% else %}danger{% endif %}">
+                                    {% if student.is_active %}Active{% else %}Inactive{% endif %}
+                                </span>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Fee Summary -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h6 class="card-title text-muted">Total Due</h6>
+                    <h3 class="text-danger"><strong>₹{{ total_due }}</strong></h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h6 class="card-title text-muted">Total Paid</h6>
+                    <h3 class="text-success"><strong>₹{{ total_paid }}</strong></h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h6 class="card-title text-muted">Total Fees</h6>
+                    <h3><strong>₹{{ total_fees_amount }}</strong></h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h6 class="card-title text-muted">Collection %</h6>
+                    <h3><strong>{{ collection_percentage }}%</strong></h3>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Fee Status Summary -->
+    {% if fee_summary %}
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h6 class="mb-0"><i class="fas fa-chart-pie"></i> Fee Status Breakdown</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% for item in fee_summary %}
+                        <div class="col-md-3">
+                            <div class="text-center">
+                                <h6 class="text-muted">{{ item.payment_status|title }}</h6>
+                                <h5><strong>₹{{ item.total }}</strong></h5>
+                                <small class="text-muted">{{ item.count }} fee(s)</small>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- All Fees Table -->
+    <div class="card mb-4">
+        <div class="card-header bg-primary text-white">
+            <h6 class="mb-0"><i class="fas fa-list"></i> All Fees ({{ all_fees.count }})</h6>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Fee Type</th>
+                            <th>Amount</th>
+                            <th>Due Date</th>
+                            <th>Academic Year</th>
+                            <th>Status</th>
+                            <th>Payment Date</th>
+                            <th>Payment Method</th>
+                            <th>Transaction ID</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for fee in all_fees %}
+                        <tr>
+                            <td><strong>{{ fee.get_fee_type_display }}</strong></td>
+                            <td>₹{{ fee.amount }}</td>
+                            <td>{{ fee.due_date|date:"d M Y" }}</td>
+                            <td>{{ fee.academic_year }}</td>
+                            <td>
+                                <span class="badge bg-{% if fee.payment_status == 'paid' %}success{% elif fee.payment_status == 'overdue' %}danger{% elif fee.payment_status == 'partial' %}warning{% else %}secondary{% endif %}">
+                                    {{ fee.get_payment_status_display }}
+                                </span>
+                                {% if fee.is_overdue %}
+                                <span class="badge bg-danger">OVERDUE</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ fee.payment_date|date:"d M Y"|default:"—" }}</td>
+                            <td>{{ fee.payment_method|default:"—" }}</td>
+                            <td><small class="font-monospace">{{ fee.transaction_id|default:"—" }}</small></td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="8" class="text-center py-4 text-muted">No fees found.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Transaction History -->
+    {% if transactions %}
+    <div class="card">
+        <div class="card-header bg-success text-white">
+            <h6 class="mb-0"><i class="fas fa-exchange-alt"></i> Transaction History ({{ transactions.count }})</h6>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Transaction ID</th>
+                            <th>Amount</th>
+                            <th>Status</th>
+                            <th>Payment Method</th>
+                            <th>Reference</th>
+                            <th>Date</th>
+                            <th>Processed By</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for txn in transactions %}
+                        <tr>
+                            <td><small class="font-monospace">{{ txn.transaction_id }}</small></td>
+                            <td><strong>₹{{ txn.amount }}</strong></td>
+                            <td>
+                                <span class="badge bg-{% if txn.status == 'completed' %}success{% elif txn.status == 'failed' %}danger{% else %}warning{% endif %}">
+                                    {{ txn.get_status_display }}
+                                </span>
+                            </td>
+                            <td>{{ txn.payment_method.get_method_type_display|default:"—" }}</td>
+                            <td>{{ txn.reference_number|default:"—" }}</td>
+                            <td>{{ txn.created_at|date:"d M Y H:i" }}</td>
+                            <td>{{ txn.processed_by.get_full_name|default:"System"|truncatewords:2 }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Action Buttons -->
+    <div class="row mt-4 mb-4">
+        <div class="col-md-12">
+            <a href="{% url 'administration:fee_management' %}" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Back to Fee Management</a>
+        </div>
+    </div>
+</div>
+
+<style>
+.font-monospace {
+    font-family: 'Courier New', monospace;
+}
+</style>
+{% endblock %}

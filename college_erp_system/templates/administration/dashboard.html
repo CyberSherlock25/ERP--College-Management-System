@@ -117,6 +117,9 @@
                                     <h6 class="mb-1 text-white fw-semibold">Pending Fees</h6>
                                     <h4 class="mb-0 text-white">{{ pending_fees_count }}</h4>
                                     <small class="text-white opacity-75">₹{{ pending_fees_amount|floatformat:2 }}</small>
+                                    <a href="{% url 'administration:fee_management' %}" class="btn btn-light btn-sm mt-2">
+                                        <i class="bi bi-arrow-right me-1"></i>Manage
+                                    </a>
                                 </div>
                             </div>
                         </div>
@@ -132,6 +135,51 @@
                                     <small class="text-white opacity-75">Total Classes</small>
                                 </div>
                             </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <a href="{% url 'administration:financial_reports' %}" class="text-decoration-none">
+                                <div class="d-flex align-items-center p-3 rounded" style="background: linear-gradient(135deg, #10b981 0%, rgba(16, 185, 129, 0.1) 100%); cursor: pointer; transition: all 0.3s ease;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">
+                                    <div class="flex-shrink-0">
+                                        <i class="bi bi-graph-up text-white bg-success rounded-circle p-2" style="font-size: 1.5rem;"></i>
+                                    </div>
+                                    <div class="flex-grow-1 ms-3">
+                                        <h6 class="mb-1 text-white fw-semibold">Financial Reports</h6>
+                                        <small class="text-white opacity-75">View detailed financial analytics</small>
+                                    </div>
+                                    <i class="bi bi-chevron-right text-white"></i>
+                                </div>
+                            </a>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <a href="{% url 'administration:transaction_history' %}" class="text-decoration-none">
+                                <div class="d-flex align-items-center p-3 rounded" style="background: linear-gradient(135deg, #8b5cf6 0%, rgba(139, 92, 246, 0.1) 100%); cursor: pointer; transition: all 0.3s ease;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">
+                                    <div class="flex-shrink-0">
+                                        <i class="bi bi-receipt text-white rounded-circle p-2" style="font-size: 1.5rem; background-color: #8b5cf6 !important;"></i>
+                                    </div>
+                                    <div class="flex-grow-1 ms-3">
+                                        <h6 class="mb-1 text-white fw-semibold">All Transactions</h6>
+                                        <small class="text-white opacity-75">Track all payment transactions</small>
+                                    </div>
+                                    <i class="bi bi-chevron-right text-white"></i>
+                                </div>
+                            </a>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <a href="{% url 'administration:bulk_assign_fees' %}" class="text-decoration-none">
+                                <div class="d-flex align-items-center p-3 rounded" style="background: linear-gradient(135deg, #f59e0b 0%, rgba(245, 158, 11, 0.1) 100%); cursor: pointer; transition: all 0.3s ease;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">
+                                    <div class="flex-shrink-0">
+                                        <i class="bi bi-plus-circle text-white rounded-circle p-2" style="font-size: 1.5rem; background-color: #f59e0b !important;"></i>
+                                    </div>
+                                    <div class="flex-grow-1 ms-3">
+                                        <h6 class="mb-1 text-white fw-semibold">Bulk Assign Fees</h6>
+                                        <small class="text-white opacity-75">Assign fees to multiple students</small>
+                                    </div>
+                                    <i class="bi bi-chevron-right text-white"></i>
+                                </div>
+                            </a>
                         </div>
                     </div>
                 </div>

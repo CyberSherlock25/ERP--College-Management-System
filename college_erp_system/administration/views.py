@@ -1169,3 +1169,504 @@ def edit_user(request):
             messages.error(request, f'Error updating user: {str(e)}')
     
     return redirect('administration:users')
+
+
+# ===== FINANCIAL MANAGEMENT VIEWS =====
+
+@login_required
+@user_passes_test(is_admin_user)
+def fee_management(request):
+    """Manage fees, set up fee structures, and track payments"""
+    from academics.models import PaymentMethod, Transaction, FeeStructure
+    
+    # Get filter parameters
+    payment_status = request.GET.get('status', 'all')
+    academic_year = request.GET.get('academic_year', f"{timezone.now().year}-{timezone.now().year + 1}")
+    student_search = request.GET.get('student_search', '')
+    
+    # Base queryset
+    fees = Fee.objects.filter(academic_year=academic_year).select_related('student')
+    
+    # Apply filters
+    if payment_status != 'all':
+        fees = fees.filter(payment_status=payment_status)
+    
+    if student_search:
+        fees = fees.filter(
+            Q(student__first_name__icontains=student_search) |
+            Q(student__last_name__icontains=student_search) |
+            Q(student__username__icontains=student_search) |
+            Q(student__student_profile__roll_number__icontains=student_search)
+        )
+    
+    # Group by status
+    status_summary = fees.values('payment_status').annotate(
+        count=Count('id'),
+        total=Sum('amount')
+    )
+    
+    # Overdue fees
+    overdue_fees = fees.filter(
+        due_date__lt=timezone.now().date(),
+        payment_status__in=['pending', 'overdue']
+    ).order_by('due_date')
+    
+    # Calculate total overdue amount
+    total_overdue_amount = overdue_fees.aggregate(total=Sum('amount'))['total'] or Decimal('0')
+    
+    # Payment methods
+    payment_methods = PaymentMethod.objects.filter(is_active=True)
+    
+    # Departments for bulk assignment
+    departments = Department.objects.all()
+    
+    context = {
+        'fees': fees[:100],  # Pagination
+        'status_summary': status_summary,
+        'overdue_fees': overdue_fees[:20],
+        'total_overdue_amount': total_overdue_amount,
+        'payment_methods': payment_methods,
+        'payment_status': payment_status,
+        'academic_year': academic_year,
+        'student_search': student_search,
+        'departments': departments,
+    }
+    return render(request, 'administration/fee_management.html', context)
+
+
+@login_required
+@user_passes_test(is_admin_user)
+def manage_payment_methods(request):
+    """Manage available payment methods for students"""
+    from academics.models import PaymentMethod
+    
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        
+        if action == 'add':
+            # Add new payment method
+            try:
+                PaymentMethod.objects.create(
+                    name=request.POST.get('name'),
+                    method_type=request.POST.get('method_type'),
+                    bank_name=request.POST.get('bank_name', ''),
+                    account_number=request.POST.get('account_number', ''),
+                    ifsc_code=request.POST.get('ifsc_code', ''),
+                    instructions=request.POST.get('instructions', '')
+                )
+                messages.success(request, 'Payment method added successfully!')
+            except Exception as e:
+                messages.error(request, f'Error adding payment method: {str(e)}')
+        
+        elif action == 'update':
+            # Update payment method
+            try:
+                method_id = request.POST.get('method_id')
+                method = PaymentMethod.objects.get(id=method_id)
+                method.name = request.POST.get('name')
+                method.instructions = request.POST.get('instructions', '')
+                method.is_active = request.POST.get('is_active') == 'on'
+                method.save()
+                messages.success(request, 'Payment method updated successfully!')
+            except PaymentMethod.DoesNotExist:
+                messages.error(request, 'Payment method not found!')
+            except Exception as e:
+                messages.error(request, f'Error updating payment method: {str(e)}')
+    
+    from academics.models import PaymentMethod
+    payment_methods = PaymentMethod.objects.all()
+    context = {'payment_methods': payment_methods}
+    return render(request, 'administration/payment_methods.html', context)
+
+
+@login_required
+@user_passes_test(is_admin_user)
+def fee_structure_management(request):
+    """Manage fee structures for courses and semesters"""
+    from academics.models import FeeStructure
+    
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        
+        if action == 'add':
+            try:
+                course_id = request.POST.get('course_id')
+                semester = request.POST.get('semester')
+                academic_year = request.POST.get('academic_year')
+                
+                # Check for duplicate
+                if FeeStructure.objects.filter(
+                    course_id=course_id,
+                    semester=semester,
+                    academic_year=academic_year
+                ).exists():
+                    messages.error(request, 'Fee structure already exists for this course/semester/year!')
+                else:
+                    FeeStructure.objects.create(
+                        course_id=course_id,
+                        semester=semester,
+                        academic_year=academic_year,
+                        tuition_fee=Decimal(request.POST.get('tuition_fee', 0)),
+                        library_fee=Decimal(request.POST.get('library_fee', 0)),
+                        lab_fee=Decimal(request.POST.get('lab_fee', 0)),
+                        exam_fee=Decimal(request.POST.get('exam_fee', 0)),
+                        development_fee=Decimal(request.POST.get('development_fee', 0)),
+                        other_fee=Decimal(request.POST.get('other_fee', 0)),
+                        payment_due_date=request.POST.get('payment_due_date')
+                    )
+                    messages.success(request, 'Fee structure added successfully!')
+            except Exception as e:
+                messages.error(request, f'Error adding fee structure: {str(e)}')
+    
+    from academics.models import FeeStructure
+    fee_structures = FeeStructure.objects.select_related('course').order_by('-academic_year', 'semester')
+    courses = Course.objects.all()
+    
+    context = {
+        'fee_structures': fee_structures[:100],
+        'courses': courses,
+    }
+    return render(request, 'administration/fee_structure_management.html', context)
+
+
+@login_required
+@user_passes_test(is_admin_user)
+def transaction_history(request):
+    """View transaction history and payment records"""
+    from academics.models import Transaction
+    
+    # Get filter parameters
+    transaction_status = request.GET.get('status', 'all')
+    date_from = request.GET.get('date_from')
+    date_to = request.GET.get('date_to')
+    search_query = request.GET.get('search', '')
+    
+    transactions = Transaction.objects.select_related(
+        'fee__student', 'payment_method', 'processed_by'
+    ).order_by('-created_at')
+    
+    # Apply filters
+    if transaction_status != 'all':
+        transactions = transactions.filter(status=transaction_status)
+    
+    if date_from:
+        transactions = transactions.filter(created_at__date__gte=date_from)
+    
+    if date_to:
+        transactions = transactions.filter(created_at__date__lte=date_to)
+    
+    if search_query:
+        transactions = transactions.filter(
+            Q(transaction_id__icontains=search_query) |
+            Q(fee__student__first_name__icontains=search_query) |
+            Q(fee__student__last_name__icontains=search_query) |
+            Q(reference_number__icontains=search_query)
+        )
+    
+    # Summary statistics
+    summary = transactions.aggregate(
+        total_transactions=Count('id'),
+        completed_amount=Sum('amount', filter=Q(status='completed')),
+        pending_amount=Sum('amount', filter=Q(status='pending')),
+        failed_amount=Sum('amount', filter=Q(status='failed'))
+    )
+    
+    context = {
+        'transactions': transactions[:200],
+        'summary': summary,
+        'transaction_status': transaction_status,
+        'date_from': date_from,
+        'date_to': date_to,
+        'search_query': search_query,
+    }
+    return render(request, 'administration/transaction_history.html', context)
+
+
+@login_required
+@user_passes_test(is_admin_user)
+def student_fee_details(request, student_id):
+    """View complete fee details for a specific student"""
+    from accounts.models import User
+    from academics.models import Transaction
+    
+    try:
+        student_user = User.objects.get(id=student_id, user_type='student')
+        student = student_user.student_profile
+    except (User.DoesNotExist, AttributeError):
+        messages.error(request, 'Student not found!')
+        return redirect('administration:fee_management')
+    
+    # Get all fees for this student
+    all_fees = Fee.objects.filter(student=student_user).order_by('-academic_year', '-created_at')
+    
+    # Get transactions
+    transactions = Transaction.objects.filter(
+        fee__student=student_user
+    ).select_related('payment_method', 'processed_by').order_by('-created_at')
+    
+    # Summary by status
+    fee_summary = all_fees.values('payment_status').annotate(
+        count=Count('id'),
+        total=Sum('amount')
+    )
+    
+    # Total due
+    total_due = all_fees.filter(payment_status__in=['pending', 'overdue']).aggregate(
+        total=Sum('amount')
+    )['total'] or Decimal('0')
+    
+    total_paid = all_fees.filter(payment_status='paid').aggregate(
+        total=Sum('amount')
+    )['total'] or Decimal('0')
+    
+    # Calculate total fees and collection percentage
+    total_fees_amount = total_due + total_paid
+    if total_fees_amount > 0:
+        collection_percentage = round((float(total_paid) / float(total_fees_amount)) * 100, 1)
+    else:
+        collection_percentage = 0
+    
+    context = {
+        'student': student,
+        'student_user': student_user,
+        'all_fees': all_fees,
+        'transactions': transactions,
+        'fee_summary': fee_summary,
+        'total_due': total_due,
+        'total_paid': total_paid,
+        'total_fees_amount': total_fees_amount,
+        'collection_percentage': collection_percentage,
+    }
+    return render(request, 'administration/student_fee_details.html', context)
+
+
+@login_required
+@user_passes_test(is_admin_user)
+def process_payment(request):
+    """Admin manual payment processing"""
+    if request.method == 'POST':
+        from academics.models import Transaction
+        import uuid
+        
+        try:
+            fee_id = request.POST.get('fee_id')
+            payment_method_id = request.POST.get('payment_method_id')
+            amount = Decimal(request.POST.get('amount', 0))
+            reference_number = request.POST.get('reference_number', '')
+            notes = request.POST.get('notes', '')
+            
+            fee = Fee.objects.get(id=fee_id)
+            payment_method = PaymentMethod.objects.get(id=payment_method_id) if payment_method_id else None
+            
+            # Create transaction
+            transaction_id = f"TXN-{uuid.uuid4().hex[:12].upper()}"
+            transaction = Transaction.objects.create(
+                fee=fee,
+                payment_method=payment_method,
+                amount=amount,
+                status='completed',
+                transaction_id=transaction_id,
+                reference_number=reference_number,
+                notes=notes,
+                processed_by=request.user,
+                completed_at=timezone.now()
+            )
+            
+            # Update fee status if full payment
+            if amount >= fee.amount:
+                fee.payment_status = 'paid'
+                fee.payment_date = timezone.now().date()
+                fee.transaction_id = transaction_id
+                fee.payment_method = payment_method.get_method_type_display() if payment_method else 'Manual'
+            elif amount > 0:
+                fee.payment_status = 'partial'
+            
+            fee.save()
+            
+            messages.success(request, f'✅ Payment of ₹{amount} processed successfully! Transaction ID: {transaction_id}')
+        except Fee.DoesNotExist:
+            messages.error(request, 'Fee not found!')
+        except PaymentMethod.DoesNotExist:
+            messages.error(request, 'Payment method not found!')
+        except Exception as e:
+            messages.error(request, f'Error processing payment: {str(e)}')
+    
+    return redirect('administration:fee_management')
+
+
+@login_required
+@user_passes_test(is_admin_user)
+def bulk_assign_fees(request):
+    """Bulk assign fees to multiple students"""
+    from academics.models import FeeStructure
+    from accounts.models import User
+    
+    if request.method == 'POST':
+        student_ids = request.POST.getlist('student_ids')
+        fee_type = request.POST.get('fee_type')
+        amount = Decimal(request.POST.get('amount', 0))
+        due_date = request.POST.get('due_date')
+        academic_year = request.POST.get('academic_year')
+        semester = request.POST.get('semester')
+        
+        try:
+            students = User.objects.filter(id__in=student_ids, user_type='student')
+            
+            created_count = 0
+            for student_user in students:
+                fee = Fee.objects.create(
+                    student=student_user,
+                    fee_type=fee_type,
+                    amount=amount,
+                    due_date=due_date,
+                    academic_year=academic_year,
+                    semester=semester,
+                    payment_status='pending'
+                )
+                
+                # Create notification for student
+                Notification.objects.create(
+                    title=f"New Fee Assignment: {fee.get_fee_type_display()}",
+                    message=f"A new fee of ₹{amount} has been assigned to you for {academic_year}. Due date: {due_date}",
+                    notification_type='fee',
+                    target_audience='individual_student',
+                    target_student=student_user.student_profile,
+                    is_urgent=False,
+                    created_by=request.user
+                )
+                created_count += 1
+            
+            messages.success(request, f"✅ Fees assigned successfully to {created_count} students!")
+        except Exception as e:
+            messages.error(request, f"Error assigning fees: {str(e)}")
+        
+        return redirect('administration:fee_management')
+    
+    # GET request - return departments for the form
+    departments = Department.objects.all()
+    context = {
+        'departments': departments,
+    }
+    return render(request, 'administration/fee_management.html', context)
+
+
+@login_required
+@user_passes_test(is_admin_user)
+def search_students_api(request):
+    """API endpoint for student search"""
+    from accounts.models import User
+    import json
+    
+    search_query = request.GET.get('q', '')
+    department_id = request.GET.get('department', '')
+    
+    students = User.objects.filter(user_type='student').select_related('student_profile__department')
+    
+    if search_query:
+        students = students.filter(
+            Q(username__icontains=search_query) |
+            Q(student_profile__roll_number__icontains=search_query) |
+            Q(student_profile__admission_number__icontains=search_query) |
+            Q(first_name__icontains=search_query) |
+            Q(last_name__icontains=search_query)
+        )
+    
+    if department_id:
+        students = students.filter(student_profile__department_id=department_id)
+    
+    data = [
+        {
+            'id': student.id,
+            'name': student.get_full_name(),
+            'roll_number': student.student_profile.roll_number,
+            'admission_number': student.student_profile.admission_number,
+            'department': student.student_profile.department.name,
+            'class': str(student.student_profile.student_class) if student.student_profile.student_class else 'N/A'
+        }
+        for student in students[:50]
+    ]
+    
+    return JsonResponse({'results': data})
+
+
+@login_required
+@user_passes_test(is_admin_user)
+def financial_reports(request):
+    """Generate comprehensive financial reports"""
+    report_type = request.GET.get('type', 'summary')
+    academic_year = request.GET.get('academic_year', f"{timezone.now().year}-{timezone.now().year + 1}")
+    export_format = request.GET.get('export', '')
+    
+    # Base data
+    fees = Fee.objects.filter(academic_year=academic_year)
+    
+    context = {
+        'report_type': report_type,
+        'academic_year': academic_year,
+    }
+    
+    if report_type == 'summary':
+        # Overall summary
+        context['summary'] = fees.aggregate(
+            total_fees=Sum('amount'),
+            collected=Sum('amount', filter=Q(payment_status='paid')),
+            pending=Sum('amount', filter=Q(payment_status__in=['pending', 'partial'])),
+            overdue=Sum('amount', filter=Q(payment_status='overdue'))
+        )
+        fee_by_type = fees.values('fee_type').annotate(
+            total=Sum('amount'),
+            collected=Sum('amount', filter=Q(payment_status='paid'))
+        )
+        # Add collection percentage
+        for item in fee_by_type:
+            if item['total'] > 0:
+                item['collection_percentage'] = round((item['collected'] or 0) / item['total'] * 100, 1)
+            else:
+                item['collection_percentage'] = 0
+        context['collection_by_type'] = fee_by_type
+    
+    elif report_type == 'defaulters':
+        # Student defaulters list
+        defaulter_fees = fees.filter(
+            payment_status__in=['pending', 'overdue'],
+            due_date__lt=timezone.now().date()
+        ).select_related('student').order_by('due_date')
+        
+        context['defaulters'] = defaulter_fees
+    
+    elif report_type == 'monthly':
+        # Monthly collection trend
+        monthly = []
+        for month in range(1, 13):
+            month_fees = fees.filter(
+                payment_date__month=month,
+                payment_status='paid'
+            ).aggregate(total=Sum('amount'))
+            monthly.append({
+                'month': month,
+                'amount': month_fees['total'] or 0
+            })
+        context['monthly_data'] = monthly
+    
+    # Export to CSV if requested
+    if export_format == 'csv':
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = f'attachment; filename="financial_report_{report_type}_{timezone.now().strftime("%Y%m%d")}.csv"'
+        writer = csv.writer(response)
+        
+        if report_type == 'defaulters':
+            writer.writerow(['Student Name', 'Roll Number', 'Fee Type', 'Amount', 'Due Date', 'Days Overdue'])
+            for fee in context['defaulters']:
+                days_overdue = (timezone.now().date() - fee.due_date).days
+                writer.writerow([
+                    fee.student.get_full_name(),
+                    fee.student.student_profile.roll_number,
+                    fee.get_fee_type_display(),
+                    fee.amount,
+                    fee.due_date,
+                    days_overdue
+                ])
+        
+        return response
+    
+    return render(request, 'administration/financial_reports.html', context)

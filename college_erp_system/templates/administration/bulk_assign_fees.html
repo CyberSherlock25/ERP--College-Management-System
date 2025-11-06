@@ -1,0 +1,263 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Bulk Assign Fees - Administration{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <h1 class="mb-4"><i class="fas fa-users"></i> Bulk Assign Fees to Students</h1>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Left Panel: Search & Select Students -->
+        <div class="col-lg-6 mb-4">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-search"></i> Search & Select Students</h5>
+                </div>
+                <div class="card-body">
+                    <!-- Department Filter -->
+                    <div class="mb-3">
+                        <label class="form-label"><strong>Filter by Department</strong></label>
+                        <select id="departmentFilter" class="form-select">
+                            <option value="">-- All Departments --</option>
+                            {% for dept in departments %}
+                            <option value="{{ dept.id }}">{{ dept.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Student Search -->
+                    <div class="mb-3">
+                        <label class="form-label"><strong>Search by PRN/Roll No/Name</strong></label>
+                        <input type="text" id="studentSearch" class="form-control" 
+                               placeholder="Enter PRN, Roll Number, or Student Name">
+                        <small class="form-text text-muted">Start typing to search...</small>
+                    </div>
+
+                    <!-- Students List -->
+                    <div class="mb-3">
+                        <label class="form-label"><strong>Available Students</strong></label>
+                        <div id="studentsList" class="border rounded p-3" style="max-height: 400px; overflow-y: auto; background-color: #f8f9fa;">
+                            <p class="text-muted text-center">Search to display students</p>
+                        </div>
+                    </div>
+
+                    <!-- Selected Students Info -->
+                    <div class="alert alert-info">
+                        <strong>Selected Students:</strong> <span id="selectedCount">0</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Panel: Fee Details -->
+        <div class="col-lg-6 mb-4">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="fas fa-money-bill-wave"></i> Fee Details</h5>
+                </div>
+                <div class="card-body">
+                    <form id="bulkAssignForm" method="POST">
+                        {% csrf_token %}
+
+                        <!-- Fee Type -->
+                        <div class="mb-3">
+                            <label class="form-label"><strong>Fee Type</strong></label>
+                            <select name="fee_type" class="form-select" required>
+                                <option value="">-- Select Fee Type --</option>
+                                {% for type_key, type_name in fee_types %}
+                                <option value="{{ type_key }}">{{ type_name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- Amount -->
+                        <div class="mb-3">
+                            <label class="form-label"><strong>Amount (₹)</strong></label>
+                            <input type="number" name="amount" class="form-control" step="0.01" 
+                                   placeholder="Enter fee amount" required>
+                        </div>
+
+                        <!-- Academic Year -->
+                        <div class="mb-3">
+                            <label class="form-label"><strong>Academic Year</strong></label>
+                            <input type="text" name="academic_year" class="form-control" 
+                                   value="2025-2026" placeholder="e.g., 2025-2026" required>
+                        </div>
+
+                        <!-- Semester -->
+                        <div class="mb-3">
+                            <label class="form-label"><strong>Semester</strong></label>
+                            <select name="semester" class="form-select" required>
+                                <option value="">-- Select Semester --</option>
+                                <option value="1">1st Semester</option>
+                                <option value="2">2nd Semester</option>
+                                <option value="3">3rd Semester</option>
+                                <option value="4">4th Semester</option>
+                                <option value="5">5th Semester</option>
+                                <option value="6">6th Semester</option>
+                                <option value="7">7th Semester</option>
+                                <option value="8">8th Semester</option>
+                            </select>
+                        </div>
+
+                        <!-- Due Date -->
+                        <div class="mb-3">
+                            <label class="form-label"><strong>Due Date</strong></label>
+                            <input type="date" name="due_date" class="form-control" required>
+                        </div>
+
+                        <!-- Submit -->
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-success btn-lg" id="submitBtn" disabled>
+                                <i class="fas fa-check-circle"></i> Assign Fees to Selected Students
+                            </button>
+                        </div>
+
+                        <!-- Hidden field for student IDs -->
+                        <input type="hidden" id="studentIdsInput" name="student_ids[]">
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+$(document).ready(function() {
+    let selectedStudents = new Set();
+    const searchUrl = "{% url 'administration:search_students_api' %}";
+
+    // Department filter change
+    $('#departmentFilter').on('change', function() {
+        performSearch();
+    });
+
+    // Student search input
+    $('#studentSearch').on('keyup', function() {
+        performSearch();
+    });
+
+    function performSearch() {
+        const query = $('#studentSearch').val();
+        const department = $('#departmentFilter').val();
+
+        if (query.length < 1 && !department) {
+            $('#studentsList').html('<p class="text-muted text-center">Search to display students</p>');
+            return;
+        }
+
+        $.ajax({
+            url: searchUrl,
+            type: 'GET',
+            data: {
+                'q': query,
+                'department': department
+            },
+            success: function(data) {
+                displayStudents(data.results);
+            },
+            error: function() {
+                $('#studentsList').html('<p class="text-danger">Error loading students</p>');
+            }
+        });
+    }
+
+    function displayStudents(students) {
+        if (students.length === 0) {
+            $('#studentsList').html('<p class="text-muted text-center">No students found</p>');
+            return;
+        }
+
+        let html = '';
+        students.forEach(student => {
+            const isChecked = selectedStudents.has(student.id) ? 'checked' : '';
+            html += `
+                <div class="form-check mb-2 p-2 border rounded">
+                    <input class="form-check-input student-checkbox" type="checkbox" 
+                           value="${student.id}" id="student_${student.id}" ${isChecked}
+                           data-name="${student.name}" data-roll="${student.roll_number}">
+                    <label class="form-check-label w-100" for="student_${student.id}" style="cursor: pointer;">
+                        <strong>${student.name}</strong> (${student.roll_number})<br>
+                        <small class="text-muted">Admission: ${student.admission_number} | Department: ${student.department} | Class: ${student.class}</small>
+                    </label>
+                </div>
+            `;
+        });
+
+        $('#studentsList').html(html);
+
+        // Restore checked state
+        $('.student-checkbox').each(function() {
+            if (selectedStudents.has(parseInt($(this).val()))) {
+                $(this).prop('checked', true);
+            }
+        });
+
+        // Checkbox change handler
+        $('.student-checkbox').on('change', function() {
+            const id = parseInt($(this).val());
+            if ($(this).is(':checked')) {
+                selectedStudents.add(id);
+            } else {
+                selectedStudents.delete(id);
+            }
+            updateSelectedCount();
+        });
+    }
+
+    function updateSelectedCount() {
+        $('#selectedCount').text(selectedStudents.size);
+        $('#submitBtn').prop('disabled', selectedStudents.size === 0);
+    }
+
+    // Form submission
+    $('#bulkAssignForm').on('submit', function(e) {
+        if (selectedStudents.size === 0) {
+            e.preventDefault();
+            alert('Please select at least one student');
+            return false;
+        }
+
+        // Set hidden input with selected student IDs
+        const studentIds = Array.from(selectedStudents);
+        $('#studentIdsInput').val(studentIds.join(','));
+    });
+
+    // Initialize with empty state
+    updateSelectedCount();
+});
+</script>
+
+<style>
+.form-check-input {
+    cursor: pointer;
+}
+
+.form-check:hover {
+    background-color: #e7f3ff !important;
+}
+
+#studentsList::-webkit-scrollbar {
+    width: 8px;
+}
+
+#studentsList::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+#studentsList::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 4px;
+}
+
+#studentsList::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+</style>
+{% endblock %}

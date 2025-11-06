@@ -451,7 +451,37 @@
                                 </li>
                                 <li class="nav-item">
                                     <a class="nav-link" href="{% url 'administration:financial_dashboard' %}">
-                                        <i class="bi bi-cash-coin"></i> Financial
+                                        <i class="bi bi-cash-coin"></i> Financial Dashboard
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link" href="{% url 'administration:fee_management' %}">
+                                        <i class="bi bi-credit-card"></i> Fee Management
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link" href="{% url 'administration:bulk_assign_fees' %}">
+                                        <i class="bi bi-plus-circle"></i> Bulk Assign Fees
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link" href="{% url 'administration:transaction_history' %}">
+                                        <i class="bi bi-receipt"></i> Transactions
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link" href="{% url 'administration:financial_reports' %}">
+                                        <i class="bi bi-graph-up"></i> Financial Reports
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link" href="{% url 'administration:manage_payment_methods' %}">
+                                        <i class="bi bi-wallet2"></i> Payment Methods
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link" href="{% url 'administration:fee_structure_management' %}">
+                                        <i class="bi bi-tag"></i> Fee Structure
                                     </a>
                                 </li>
                             {% endif %}

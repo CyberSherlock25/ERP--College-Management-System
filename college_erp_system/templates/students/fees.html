@@ -20,7 +20,7 @@
 
     <!-- Fee Summary Cards -->
     <div class="row mb-4">
-        <div class="col-md-4">
+        <div class="col-md-3">
             <div class="card border-success shadow-sm">
                 <div class="card-body text-center">
                     <h6 class="card-title text-muted">Total Paid</h6>
@@ -29,7 +29,16 @@
                 </div>
             </div>
         </div>
-        <div class="col-md-4">
+        <div class="col-md-3">
+            <div class="card border-warning shadow-sm">
+                <div class="card-body text-center">
+                    <h6 class="card-title text-muted">Partially Paid</h6>
+                    <h3 class="text-warning">₹{{ total_partial }}</h3>
+                    <small class="text-muted">{{ partial_fees|length }} Partial</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
             <div class="card border-danger shadow-sm">
                 <div class="card-body text-center">
                     <h6 class="card-title text-muted">Total Pending</h6>
@@ -38,11 +47,11 @@
                 </div>
             </div>
         </div>
-        <div class="col-md-4">
+        <div class="col-md-3">
             <div class="card border-primary shadow-sm">
                 <div class="card-body text-center">
                     <h6 class="card-title text-muted">Total Fees</h6>
-                    <h3 class="text-primary">₹{{ total_paid|add:total_pending }}</h3>
+                    <h3 class="text-primary">₹{{ total_fees_amount }}</h3>
                     <small class="text-muted">{{ all_fees|length }} Total Records</small>
                 </div>
             </div>
@@ -111,35 +120,95 @@
                 <div class="modal-dialog modal-lg">
                     <div class="modal-content">
                         <div class="modal-header bg-success text-white">
-                            <h5 class="modal-title">Pay {{ fee.get_fee_type_display }}</h5>
+                            <h5 class="modal-title"><i class="bi bi-credit-card"></i> Pay {{ fee.get_fee_type_display }}</h5>
                             <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                         </div>
-                        <div class="modal-body">
-                            <div class="alert alert-info">
-                                <strong>Payment Details</strong>
-                                <ul class="mb-0 mt-2">
-                                    <li>Fee Type: {{ fee.get_fee_type_display }}</li>
-                                    <li>Amount: <strong>₹{{ fee.amount }}</strong></li>
-                                    <li>Due Date: {{ fee.due_date|date:"d M, Y" }}</li>
-                                    <li>Academic Year: {{ fee.academic_year }}</li>
-                                </ul>
+                        <form method="post">
+                            {% csrf_token %}
+                            <div class="modal-body">
+                                <div class="alert alert-info mb-4">
+                                    <strong><i class="bi bi-info-circle"></i> Payment Details</strong>
+                                    <ul class="mb-0 mt-2">
+                                        <li>Fee Type: <strong>{{ fee.get_fee_type_display }}</strong></li>
+                                        <li>Total Amount: <strong class="text-success">₹{{ fee.amount }}</strong></li>
+                                        <li>Due Date: {{ fee.due_date|date:"d M, Y" }}</li>
+                                        <li>Academic Year: {{ fee.academic_year }}</li>
+                                    </ul>
+                                </div>
+
+                                <!-- Payment Amount -->
+                                <div class="mb-3">
+                                    <label class="form-label"><strong>Payment Amount</strong></label>
+                                    <div class="input-group input-group-lg">
+                                        <span class="input-group-text">₹</span>
+                                        <input type="number" name="amount" class="form-control" step="0.01" value="{{ fee.amount }}" required>
+                                    </div>
+                                    <small class="form-text text-muted">You can pay full or partial amount</small>
+                                </div>
+
+                                <!-- Payment Method Selection -->
+                                <div class="mb-3">
+                                    <label class="form-label"><strong>Payment Method</strong></label>
+                                    <div class="row g-2">
+                                        {% for method in payment_methods %}
+                                        <div class="col-md-6">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="radio" name="payment_method_id" id="method{{ fee.id }}_{{ method.id }}" value="{{ method.id }}" {% if forloop.first %}checked{% endif %}>
+                                                <label class="form-check-label w-100 p-2 border rounded" for="method{{ fee.id }}_{{ method.id }}" style="cursor: pointer;">
+                                                    <i class="bi bi-{% if method.method_type == 'online' %}globe{% elif method.method_type == 'cash' %}cash-coin{% elif method.method_type == 'bank_transfer' %}bank{% elif method.method_type == 'cheque' %}credit-card{% else %}gift{% endif %}"></i>
+                                                    <strong>{{ method.name }}</strong><br>
+                                                    <small class="text-muted">{{ method.get_method_type_display }}</small>
+                                                </label>
+                                            </div>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+
+                                <!-- Reference Number for Non-Online Methods -->
+                                <div class="mb-3" id="referenceDiv" style="display:none;">
+                                    <label class="form-label"><strong>Reference Number</strong></label>
+                                    <input type="text" name="reference_number" class="form-control" placeholder="e.g., Cheque #, DD #, UPI ID, Bank Receipt #">
+                                </div>
                             </div>
-                        </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                            <form method="post" class="d-inline">
-                                {% csrf_token %}
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                                 <input type="hidden" name="fee_id" value="{{ fee.id }}">
-                                <input type="hidden" name="payment_method" value="online">
-                                <button type="submit" class="btn btn-success">
-                                    <i class="bi bi-check-circle"></i> Confirm Payment
+                                <button type="submit" class="btn btn-success btn-lg">
+                                    <i class="bi bi-check-circle"></i> Process Payment
                                 </button>
-                            </form>
-                        </div>
+                            </div>
+                        </form>
                     </div>
                 </div>
             </div>
         {% endfor %}
+
+        <!-- Script to show/hide reference field -->
+        <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const onlineMethodIds = [{% for method in payment_methods %}{% if method.method_type == 'online' %}{{ method.id }},{% endif %}{% endfor %}];
+            
+            const referenceDiv = document.getElementById('referenceDiv');
+            const paymentRadios = document.querySelectorAll('input[name="payment_method_id"]');
+            
+            function updateReferenceVisibility() {
+                const selectedId = document.querySelector('input[name="payment_method_id"]:checked').value;
+                if (onlineMethodIds.includes(parseInt(selectedId))) {
+                    referenceDiv.style.display = 'none';
+                } else {
+                    referenceDiv.style.display = 'block';
+                }
+            }
+            
+            paymentRadios.forEach(radio => {
+                radio.addEventListener('change', updateReferenceVisibility);
+            });
+            
+            // Initial check
+            updateReferenceVisibility();
+        });
+        </script>
     {% endif %}
 
     <!-- Paid Fees Section -->
@@ -184,6 +253,88 @@
                                             <i class="bi bi-download"></i> Receipt
                                         </a>
                                     </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+
+    <!-- Partial Fees Section -->
+    {% if partial_fees %}
+        <div class="card shadow-lg mb-4">
+            <div class="card-header bg-warning text-dark">
+                <h5 class="mb-0"><i class="bi bi-hourglass-split"></i> Partially Paid Fees ({{ partial_fees|length }})</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover table-bordered">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Fee Type</th>
+                                <th>Total Amount</th>
+                                <th>Status</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for fee in partial_fees %}
+                                <tr>
+                                    <td class="fw-bold">
+                                        {{ fee.get_fee_type_display }}
+                                        <br>
+                                        <small class="text-muted">{{ fee.academic_year }} - Sem {{ fee.semester }}</small>
+                                    </td>
+                                    <td class="text-end fw-bold text-warning">₹{{ fee.amount }}</td>
+                                    <td>
+                                        <span class="badge bg-warning text-dark">Partially Paid</span>
+                                    </td>
+                                    <td>
+                                        <button class="btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#paymentModal{{ fee.id }}">
+                                            <i class="bi bi-credit-card"></i> Pay Remaining
+                                        </button>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+
+    <!-- Transaction History -->
+    {% if transactions %}
+        <div class="card shadow-lg mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="bi bi-receipt"></i> Recent Transactions ({{ transactions|length }})</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Transaction ID</th>
+                                <th>Amount</th>
+                                <th>Status</th>
+                                <th>Method</th>
+                                <th>Date</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for txn in transactions %}
+                                <tr>
+                                    <td><small class="font-monospace">{{ txn.transaction_id }}</small></td>
+                                    <td class="fw-bold">₹{{ txn.amount }}</td>
+                                    <td>
+                                        <span class="badge bg-{% if txn.status == 'completed' %}success{% elif txn.status == 'failed' %}danger{% else %}warning{% endif %}">
+                                            {{ txn.get_status_display }}
+                                        </span>
+                                    </td>
+                                    <td>{{ txn.payment_method.get_method_type_display|default:"—" }}</td>
+                                    <td>{{ txn.created_at|date:"d M Y H:i" }}</td>
                                 </tr>
                             {% endfor %}
                         </tbody>
