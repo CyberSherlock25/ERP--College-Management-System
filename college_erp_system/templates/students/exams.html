@@ -1,13 +1,148 @@
 {% extends 'base.html' %}
 
-{% block title %}Exams{% endblock %}
+{% block title %}My Exams{% endblock %}
 
 {% block content %}
 <div class="py-4">
-    <h1 class="h2 mb-4">Exams</h1>
-    <div class="alert alert-info">
-        <i class="bi bi-info-circle"></i>
-        Exam management features coming soon!
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h2"><i class="bi bi-file-earmark-text"></i> My Exams & Marks</h1>
     </div>
+
+    <!-- Upcoming Exams Section -->
+    {% if upcoming_exams %}
+        <div class="card shadow-lg mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="bi bi-calendar-event"></i> Upcoming Exams ({{ upcoming_exams|length }})</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    {% for exam in upcoming_exams %}
+                        <div class="col-md-6 col-lg-4 mb-3">
+                            <div class="card border-primary h-100">
+                                <div class="card-header bg-light">
+                                    <h6 class="mb-0">{{ exam.subject.course.code }}</h6>
+                                </div>
+                                <div class="card-body">
+                                    <h5 class="card-title">{{ exam.name }}</h5>
+                                    <p class="card-text">
+                                        <strong>Course:</strong> {{ exam.subject.course.name }}<br>
+                                        <strong>Type:</strong> {{ exam.get_exam_type_display }}<br>
+                                        <strong>Total Marks:</strong> {{ exam.total_marks }}<br>
+                                        <strong>Pass Marks:</strong> {{ exam.pass_marks }}
+                                    </p>
+                                    <hr>
+                                    <p class="card-text small">
+                                        <strong>Date:</strong> {{ exam.date|date:"d M, Y H:i" }}<br>
+                                        <strong>Duration:</strong> {{ exam.duration }}<br>
+                                        <strong>Teacher:</strong> {{ exam.subject.teacher.get_full_name }}
+                                    </p>
+                                    {% if exam.instructions %}
+                                        <hr>
+                                        <p class="card-text small text-muted">
+                                            <strong>Instructions:</strong> {{ exam.instructions }}
+                                        </p>
+                                    {% endif %}
+                                </div>
+                                <div class="card-footer bg-light">
+                                    <span class="badge bg-info">Upcoming</span>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    {% endif %}
+
+    <!-- Past Exams Section with Results -->
+    {% if past_exams_with_results %}
+        <div class="card shadow-lg mb-4">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0"><i class="bi bi-check-circle"></i> Completed Exams & Results ({{ past_exams_with_results|length }})</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover table-bordered">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Exam Name</th>
+                                <th>Course</th>
+                                <th>Type</th>
+                                <th>Marks Obtained</th>
+                                <th>Total Marks</th>
+                                <th>Grade</th>
+                                <th>Status</th>
+                                <th>Date</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in past_exams_with_results %}
+                                <tr>
+                                    <td class="fw-bold">{{ item.exam.name }}</td>
+                                    <td>{{ item.exam.subject.course.code }}</td>
+                                    <td>{{ item.exam.get_exam_type_display }}</td>
+                                    <td>
+                                        {% if item.result and item.result.marks_obtained is not None %}
+                                            <strong class="text-primary">{{ item.result.marks_obtained }}</strong>
+                                        {% else %}
+                                            <span class="text-muted">--</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ item.exam.total_marks }}</td>
+                                    <td>
+                                        {% if item.result and item.result.grade %}
+                                            <span class="badge bg-info">{{ item.result.grade }}</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">N/A</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if item.result and item.result.marks_obtained is not None %}
+                                            {% if item.result.marks_obtained >= item.exam.pass_marks %}
+                                                <span class="badge bg-success">Pass</span>
+                                            {% else %}
+                                                <span class="badge bg-danger">Fail</span>
+                                            {% endif %}
+                                        {% else %}
+                                            <span class="badge bg-warning">Pending</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ item.exam.date|date:"d M, Y" }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+
+    <!-- No Exams Message -->
+    {% if not upcoming_exams and not past_exams_with_results %}
+        <div class="alert alert-info" role="alert">
+            <i class="bi bi-info-circle"></i>
+            No exams scheduled for your class yet. Check back later!
+        </div>
+    {% endif %}
 </div>
+
+<style>
+    .card {
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1) !important;
+    }
+
+    .table-hover tbody tr:hover {
+        background-color: #f8f9fa;
+    }
+
+    .badge {
+        font-size: 0.8rem;
+        padding: 0.4rem 0.6rem;
+    }
+</style>
 {% endblock %}
