@@ -472,7 +472,9 @@ def enter_grades(request):
                 continue
         
         messages.success(request, f"Updated grades for {updated_count} students.")
-        return redirect(f'teachers:enter_grades?exam={selected_exam_id}')
+        from django.http import HttpResponseRedirect
+        from django.urls import reverse
+        return HttpResponseRedirect(f"{reverse('teachers:enter_grades')}?exam={selected_exam_id}")
     
     context = {
         'my_exams': my_exams,

@@ -316,3 +316,84 @@ class TeacherTimetable(models.Model):
     
     def __str__(self):
         return f"{self.teacher.get_full_name()} - {self.subject.course.code} - {self.time_slot}"
+
+class PaymentMethod(models.Model):
+    """Payment methods available for students"""
+    METHOD_TYPE_CHOICES = [
+        ('online', 'Online Payment'),
+        ('bank_transfer', 'Bank Transfer'),
+        ('cheque', 'Cheque'),
+        ('cash', 'Cash'),
+        ('demand_draft', 'Demand Draft'),
+    ]
+    
+    name = models.CharField(max_length=100)
+    method_type = models.CharField(max_length=20, choices=METHOD_TYPE_CHOICES)
+    is_active = models.BooleanField(default=True)
+    bank_name = models.CharField(max_length=100, blank=True)  # For bank transfers
+    account_number = models.CharField(max_length=50, blank=True)
+    ifsc_code = models.CharField(max_length=20, blank=True)
+    instructions = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    def __str__(self):
+        return f"{self.name} ({self.get_method_type_display()})"
+
+class Transaction(models.Model):
+    """Track financial transactions"""
+    TRANSACTION_STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('completed', 'Completed'),
+        ('failed', 'Failed'),
+        ('cancelled', 'Cancelled'),
+        ('refunded', 'Refunded'),
+    ]
+    
+    fee = models.ForeignKey(Fee, on_delete=models.CASCADE, related_name='transactions')
+    payment_method = models.ForeignKey(PaymentMethod, on_delete=models.SET_NULL, null=True)
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    status = models.CharField(max_length=20, choices=TRANSACTION_STATUS_CHOICES, default='pending')
+    transaction_id = models.CharField(max_length=100, unique=True)
+    reference_number = models.CharField(max_length=100, blank=True)  # Cheque/DD number
+    notes = models.TextField(blank=True)
+    processed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='processed_transactions'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"Transaction {self.transaction_id} - {self.amount}"
+
+class FeeStructure(models.Model):
+    """Define fee structure for courses/classes"""
+    course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name='fee_structures')
+    semester = models.IntegerField(choices=Course.SEMESTER_CHOICES)
+    academic_year = models.CharField(max_length=9)
+    tuition_fee = models.DecimalField(max_digits=10, decimal_places=2)
+    library_fee = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    lab_fee = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    exam_fee = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    development_fee = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    other_fee = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    payment_due_date = models.DateField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        unique_together = ['course', 'semester', 'academic_year']
+    
+    def __str__(self):
+        return f"{self.course.code} - {self.academic_year} - Sem {self.semester}"
+    
+    @property
+    def total_fee(self):
+        return (self.tuition_fee + self.library_fee + self.lab_fee + 
+                self.exam_fee + self.development_fee + self.other_fee)
