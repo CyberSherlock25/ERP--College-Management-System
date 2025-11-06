@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Schedule Exam</h2>
+
+<form method="post" action="{% url 'teachers:schedule_exam' %}">
+	{% csrf_token %}
+	<div>
+		<label>Select subjects you want to schedule an exam for:</label>
+		<ul style="list-style:none;padding:0;">
+			{% for subj in subjects %}
+				<li>
+					<label>
+						<input type="checkbox" name="subjects" value="{{ subj.id }}"> {{ subj.course.code }} - {{ subj.name }} ({{ subj.class_assigned }})
+					</label>
+				</li>
+			{% empty %}
+				<li>No subjects assigned to you.</li>
+			{% endfor %}
+		</ul>
+	</div>
+
+	<div>
+		<label>Date:</label>
+		<input type="date" name="date" value="{{ selected_date }}">
+	</div>
+
+	<div>
+		<label>Start time (optional):</label>
+		<input type="time" name="start_time">
+	</div>
+	<div>
+		<label>End time (optional):</label>
+		<input type="time" name="end_time">
+	</div>
+
+	<div>
+		<label>Exam type (optional):</label>
+		<select name="exam_type">
+			<option value="Regular">Regular</option>
+			<option value="Makeup">Makeup</option>
+			<option value="Quiz">Quiz</option>
+		</select>
+	</div>
+
+	<button type="submit" class="btn btn-primary">Schedule Exam</button>
+</form>
+{% endblock %}

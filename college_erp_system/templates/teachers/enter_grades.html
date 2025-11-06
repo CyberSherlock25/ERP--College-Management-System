@@ -1,0 +1,216 @@
+{% extends 'base.html' %}
+
+{% block title %}Enter Grades{% endblock %}
+
+{% block content %}
+<div class="py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h2"><i class="bi bi-pencil-square"></i> Enter Student Grades</h1>
+    </div>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                <i class="bi bi-{% if message.tags == 'success' %}check-circle{% else %}exclamation-circle{% endif %}"></i>
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="card shadow-lg mb-4">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0"><i class="bi bi-file-earmark-text"></i> Select Exam</h5>
+        </div>
+        <div class="card-body">
+            {% if my_exams %}
+                <form method="get" class="row g-3">
+                    <div class="col-md-8">
+                        <label for="exam_select" class="form-label">Choose an exam:</label>
+                        <select class="form-select form-select-lg" id="exam_select" name="exam" required onchange="this.form.submit()">
+                            <option value="">-- Select Exam --</option>
+                            {% for exam in my_exams %}
+                                <option value="{{ exam.id }}" {% if selected_exam.id == exam.id %}selected{% endif %}>
+                                    {{ exam.name }} - {{ exam.subject.course.code }} ({{ exam.get_exam_type_display }})
+                                    • {{ exam.date|date:"M d, Y H:i" }}
+                                    • Marks: {{ exam.total_marks }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </form>
+            {% else %}
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    You haven't created any exams yet. 
+                    <a href="{% url 'teachers:exam_select' %}">Create an exam</a> first.
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if selected_exam and students_results %}
+        <div class="card shadow-lg">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0">
+                    <i class="bi bi-list-ul"></i>
+                    {{ selected_exam.name }} - {{ selected_exam.subject.course.code }}
+                </h5>
+                <small>Class: {{ selected_exam.subject.class_assigned }} | Total Marks: {{ selected_exam.total_marks }} | Pass Marks: {{ selected_exam.pass_marks }}</small>
+            </div>
+            <div class="card-body">
+                <form method="post" class="needs-validation">
+                    {% csrf_token %}
+                    
+                    <div class="table-responsive">
+                        <table class="table table-hover table-bordered">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th style="width: 5%;">Roll No.</th>
+                                    <th>Student Name</th>
+                                    <th style="width: 15%;">Marks (0-{{ selected_exam.total_marks }})</th>
+                                    <th>Remarks</th>
+                                    <th style="width: 10%;">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in students_results %}
+                                    <tr>
+                                        <td class="fw-bold">
+                                            {{ item.student.roll_number }}
+                                        </td>
+                                        <td>
+                                            {{ item.student.user.get_full_name|default:item.student.user.username }}
+                                        </td>
+                                        <td>
+                                            <input 
+                                                type="number" 
+                                                name="marks_{{ item.result.id }}"
+                                                class="form-control form-control-sm"
+                                                min="0" 
+                                                max="{{ selected_exam.total_marks }}"
+                                                value="{{ item.result.marks_obtained|default:'' }}"
+                                                placeholder="Enter marks"
+                                            >
+                                        </td>
+                                        <td>
+                                            <input 
+                                                type="text" 
+                                                name="remarks_{{ item.result.id }}"
+                                                class="form-control form-control-sm"
+                                                value="{{ item.result.remarks|default:'' }}"
+                                                placeholder="Optional remarks"
+                                            >
+                                        </td>
+                                        <td>
+                                            {% if item.result.marks_obtained is not None %}
+                                                {% if item.result.marks_obtained >= selected_exam.pass_marks %}
+                                                    <span class="badge bg-success">Pass</span>
+                                                {% else %}
+                                                    <span class="badge bg-danger">Fail</span>
+                                                {% endif %}
+                                            {% else %}
+                                                <span class="badge bg-secondary">Pending</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <button type="submit" class="btn btn-lg btn-success">
+                                <i class="bi bi-check-circle"></i> Save All Grades
+                            </button>
+                            <a href="{% url 'teachers:dashboard' %}" class="btn btn-lg btn-secondary">
+                                <i class="bi bi-x-circle"></i> Cancel
+                            </a>
+                        </div>
+                    </div>
+                </form>
+
+                <!-- Statistics -->
+                <div class="row mt-4">
+                    <div class="col-md-3">
+                        <div class="card text-center">
+                            <div class="card-body">
+                                <h6 class="card-title">Total Students</h6>
+                                <h3 class="text-primary">{{ students_results|length }}</h3>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card text-center">
+                            <div class="card-body">
+                                <h6 class="card-title">Marks Entered</h6>
+                                <h3 class="text-success" id="marksEnteredCount">0</h3>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card text-center">
+                            <div class="card-body">
+                                <h6 class="card-title">Pass Marks</h6>
+                                <h3 class="text-info">{{ selected_exam.pass_marks }}</h3>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card text-center">
+                            <div class="card-body">
+                                <h6 class="card-title">Total Marks</h6>
+                                <h3 class="text-warning">{{ selected_exam.total_marks }}</h3>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% elif selected_exam %}
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle"></i>
+            No students found in the class for this exam.
+        </div>
+    {% endif %}
+</div>
+
+<style>
+    .table-hover tbody tr:hover {
+        background-color: #f8f9fa;
+    }
+
+    .form-control:focus {
+        border-color: #0d6efd;
+        box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+    }
+
+    .badge {
+        font-size: 0.85rem;
+        padding: 0.5rem 0.75rem;
+    }
+</style>
+
+<script>
+    // Update marks entered count
+    document.addEventListener('DOMContentLoaded', function() {
+        function updateMarksCount() {
+            let count = 0;
+            document.querySelectorAll('input[type="number"]').forEach(input => {
+                if (input.value && input.value !== '') {
+                    count++;
+                }
+            });
+            document.getElementById('marksEnteredCount').textContent = count;
+        }
+
+        // Update on any input change
+        document.querySelectorAll('input[type="number"]').forEach(input => {
+            input.addEventListener('change', updateMarksCount);
+        });
+
+        updateMarksCount();
+    });
+</script>
+{% endblock %}

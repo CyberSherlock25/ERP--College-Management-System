@@ -1,0 +1,159 @@
+{% extends 'base.html' %}
+
+{% block title %}My Classes{% endblock %}
+
+{% block content %}
+<div class="py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h2"><i class="bi bi-people-fill"></i> My Managed Classes</h1>
+    </div>
+
+    {% if classes_data %}
+        <div class="row">
+            {% for item in classes_data %}
+                <div class="col-md-6 col-lg-4 mb-4">
+                    <div class="card shadow-sm h-100 border-primary">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0">{{ item.class }}</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <small class="text-muted">Department</small>
+                                    <p class="fw-bold">{{ item.class.department.code }}</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <small class="text-muted">Semester</small>
+                                    <p class="fw-bold">{{ item.class.get_semester_display }}</p>
+                                </div>
+                            </div>
+                            
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <small class="text-muted">Section</small>
+                                    <p class="fw-bold">{{ item.class.section }}</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <small class="text-muted">Academic Year</small>
+                                    <p class="fw-bold">{{ item.class.academic_year }}</p>
+                                </div>
+                            </div>
+
+                            <hr>
+
+                            <div class="row text-center">
+                                <div class="col-md-6">
+                                    <small class="text-muted">Total Students</small>
+                                    <h4 class="text-success">{{ item.students_count }}</h4>
+                                </div>
+                                <div class="col-md-6">
+                                    <small class="text-muted">Subjects</small>
+                                    <h4 class="text-info">{{ item.subjects_count }}</h4>
+                                </div>
+                            </div>
+
+                            <div class="row mt-3">
+                                <div class="col-md-6">
+                                    <small class="text-muted">Max Strength</small>
+                                    <p class="fw-bold">{{ item.class.max_strength }}</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-footer bg-light">
+                            <a href="#" class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#classDetailsModal{{ item.class.id }}">
+                                <i class="bi bi-eye"></i> View Details
+                            </a>
+                            <a href="{% url 'teachers:attendance' %}?class={{ item.class.id }}" class="btn btn-sm btn-warning">
+                                <i class="bi bi-check2-square"></i> Attendance
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+
+        <!-- Modals for class details -->
+        {% for item in classes_data %}
+            <div class="modal fade" id="classDetailsModal{{ item.class.id }}" tabindex="-1">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header bg-primary text-white">
+                            <h5 class="modal-title">{{ item.class }} - Class Details</h5>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <strong>Department:</strong> {{ item.class.department.name }}
+                                </div>
+                                <div class="col-md-6">
+                                    <strong>Code:</strong> {{ item.class.department.code }}
+                                </div>
+                            </div>
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <strong>Semester:</strong> {{ item.class.get_semester_display }}
+                                </div>
+                                <div class="col-md-6">
+                                    <strong>Section:</strong> {{ item.class.section }}
+                                </div>
+                            </div>
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <strong>Academic Year:</strong> {{ item.class.academic_year }}
+                                </div>
+                                <div class="col-md-6">
+                                    <strong>Max Strength:</strong> {{ item.class.max_strength }}
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-12">
+                                    <strong>Total Enrolled Students:</strong> {{ item.students_count }}
+                                </div>
+                                <div class="col-12">
+                                    <strong>Total Subjects:</strong> {{ item.subjects_count }}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+
+    {% else %}
+        <div class="alert alert-info" role="alert">
+            <i class="bi bi-info-circle"></i>
+            You are not currently managing any classes. Please contact the administration if you believe this is an error.
+        </div>
+    {% endif %}
+</div>
+
+<style>
+    .card {
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 5px 20px rgba(0,0,0,0.15) !important;
+    }
+
+    .card-header {
+        border-bottom: 3px solid rgba(255,255,255,0.3);
+    }
+
+    .card-footer {
+        display: flex;
+        gap: 5px;
+        flex-wrap: wrap;
+    }
+
+    .card-footer .btn {
+        flex: 1;
+        min-width: 100px;
+    }
+</style>
+{% endblock %}

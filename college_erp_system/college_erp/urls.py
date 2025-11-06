@@ -30,7 +30,7 @@ urlpatterns = [
     path('', home_redirect, name='home'),
     path('accounts/', include('accounts.urls')),
     path('students/', include('students.urls')),
-    path('teachers/', include('teachers.urls')),
+    path('teachers/', include('teachers.urls', namespace='teachers')),
     path('administration/', include('administration.urls')),
 ]
 

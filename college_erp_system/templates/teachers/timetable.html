@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% load timetable_filters %}
+{% load static %}
 
 {% block title %}My Timetable{% endblock %}
 
@@ -21,53 +22,67 @@
     </div>
     
     {% if teacher_timetable %}
+        <!-- Timetable Image Section -->
+        <div class="card shadow-lg mb-4">
+            <div class="card-header bg-secondary text-white">
+                <h5 class="mb-0"><i class="bi bi-image"></i> Timetable Overview</h5>
+            </div>
+            <div class="card-body text-center">
+                <img src="{% static 'images/timetable.png' %}" alt="Timetable Overview" class="img-fluid rounded" style="max-width: 100%; height: auto;">
+            </div>
+        </div>
+
+        <!-- Grid Timetable -->
         <div class="card shadow-lg">
             <div class="card-header bg-primary text-white">
-                <h5 class="mb-0"><i class="bi bi-person-badge"></i> {{ user.get_full_name }}'s Timetable</h5>
+                <h5 class="mb-0"><i class="bi bi-person-badge"></i> {{ user.get_full_name }}'s Timetable ({{ selected_year }})</h5>
             </div>
             <div class="card-body">
-                <div class="table-responsive">
-                    <table class="table table-bordered table-hover">
-                        <thead class="table-dark">
-                            <tr>
-                                <th style="width: 150px;">Time</th>
-                                {% for day in days %}
-                                    <th class="text-center">{{ day|title }}</th>
-                                {% endfor %}
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for start_time, end_time in time_slots %}
-                            <tr>
-                                <td class="fw-bold">
-                                    {{ start_time|time:"g:i A" }} - {{ end_time|time:"g:i A" }}
-                                </td>
-                                {% for day in days %}
-                                    <td class="text-center">
-                                        {% for schedule in organized_timetable|lookup:day %}
-                                            {% if schedule.time_slot.start_time == start_time and schedule.time_slot.end_time == end_time %}
-                                                <div class="timetable-cell p-2 rounded" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
-                                                    <div class="fw-bold">{{ schedule.subject.course.code }}</div>
-                                                    <small>{{ schedule.subject.course.name }}</small><br>
-                                                    <small><i class="bi bi-people"></i> {{ schedule.subject.class_assigned }}</small><br>
-                                                    <small><i class="bi bi-door-closed"></i> Room: {{ schedule.room_number|default:"TBA" }}</small>
-                                                </div>
-                                            {% endif %}
-                                        {% endfor %}
+                {% if days and time_slots %}
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-hover timetable-grid">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th style="width: 120px;" class="text-center">Time</th>
+                                    {% for day in days %}
+                                        <th class="text-center">{{ day|title }}</th>
+                                    {% endfor %}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for start_time, end_time in time_slots %}
+                                <tr>
+                                    <td class="fw-bold text-center time-cell">
+                                        <div>{{ start_time|time:"H:i" }}</div>
+                                        <div style="font-size: 0.75rem; font-weight: normal;">to</div>
+                                        <div>{{ end_time|time:"H:i" }}</div>
                                     </td>
+                                    {% for day in days %}
+                                        <td class="text-center p-0" style="vertical-align: middle;">
+                                            {% with classes=organized_timetable|lookup:day %}
+                                                {% for schedule in classes %}
+                                                    {% if schedule.time_slot.start_time == start_time and schedule.time_slot.end_time == end_time %}
+                                                        <div class="timetable-cell">
+                                                            <div class="fw-bold mb-1">{{ schedule.subject.course.code }}</div>
+                                                            <div class="small mb-1">{{ schedule.subject.course.name }}</div>
+                                                            <div class="small mb-1"><i class="bi bi-people"></i> {{ schedule.subject.class_assigned }}</div>
+                                                            <div class="small"><i class="bi bi-door-closed"></i> {{ schedule.room_number|default:"TBA" }}</div>
+                                                        </div>
+                                                    {% endif %}
+                                                {% endfor %}
+                                            {% endwith %}
+                                        </td>
+                                    {% endfor %}
+                                </tr>
                                 {% endfor %}
-                            </tr>
-                            {% empty %}
-                            <tr>
-                                <td colspan="7" class="text-center text-muted py-4">
-                                    <i class="bi bi-calendar-x fs-1 d-block mb-2"></i>
-                                    No timetable slots available
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="alert alert-warning" role="alert">
+                        <i class="bi bi-exclamation-triangle"></i> No time slots or days available for the selected year.
+                    </div>
+                {% endif %}
             </div>
         </div>
         

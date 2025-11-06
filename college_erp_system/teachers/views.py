@@ -3,8 +3,10 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.utils import timezone
 from django.db import transaction
+from datetime import datetime, timedelta
+from collections import defaultdict
 
-from academics.models import Class, Subject, Attendance, Course, Timetable, Exam, TeacherTimetable, AcademicCalendar
+from academics.models import Class, Subject, Attendance, Course, Timetable, Exam, TimeSlot, TeacherTimetable
 from students.models import Student, Notification
 
 
@@ -214,51 +216,267 @@ def attendance_mark(request, subject_id):
     }
     return render(request, 'teachers/attendance_mark.html', context)
 
+
 @login_required
 def teacher_timetable(request):
-    """Display teacher's personal timetable"""
+    """Display organized teacher timetable in grid format."""
     if not request.user.is_teacher:
         messages.error(request, "Access denied.")
         return redirect('accounts:login')
-    
-    teacher_user = request.user
-    
-    # Get filter parameters
+
+    # Get selected academic year from GET params
     selected_year = request.GET.get('year', '2025-2026')
     
     # Get teacher's timetable
-    teacher_timetable = TeacherTimetable.objects.filter(
-        teacher=teacher_user,
+    teacher_timetable_objs = TeacherTimetable.objects.filter(
+        teacher=request.user,
         academic_year=selected_year
     ).select_related('subject__course', 'subject__class_assigned', 'time_slot').order_by(
         'time_slot__day', 'time_slot__start_time'
     )
     
-    # Organize timetable by day
-    days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
-    organized_timetable = {}
-    
-    for day in days:
-        organized_timetable[day] = list(teacher_timetable.filter(time_slot__day=day))
-    
-    # Get all unique time slots ordered by start time
+    # Organize timetable by day for grid display
+    organized_timetable = defaultdict(list)
     time_slots_set = set()
-    for entry in teacher_timetable:
+    days_set = set()
+    
+    for entry in teacher_timetable_objs:
+        day = entry.time_slot.day.lower()
+        organized_timetable[day].append(entry)
+        days_set.add(day)
         time_slots_set.add((entry.time_slot.start_time, entry.time_slot.end_time))
     
-    time_slots = sorted(list(time_slots_set), key=lambda x: x[0])
+    # Convert to sorted lists
+    days = sorted(list(days_set), key=lambda x: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'].index(x))
+    time_slots = sorted(list(time_slots_set))
     
-    # Get unique academic years
-    academic_years = TeacherTimetable.objects.values_list('academic_year', flat=True).distinct()
-    if not academic_years:
-        academic_years = ['2025-2026']  # Default year
+    # Get available academic years
+    academic_years = TeacherTimetable.objects.filter(
+        teacher=request.user
+    ).values_list('academic_year', flat=True).distinct().order_by('-academic_year')
     
     context = {
-        'teacher_timetable': teacher_timetable,
+        'teacher_timetable': teacher_timetable_objs,
         'organized_timetable': organized_timetable,
         'days': days,
         'time_slots': time_slots,
-        'academic_years': academic_years,
+        'academic_years': academic_years or ['2025-2026'],
         'selected_year': selected_year,
     }
     return render(request, 'teachers/timetable.html', context)
+
+
+@login_required
+def exam_select(request):
+    """Allow a teacher to select subjects and schedule an exam."""
+    if not request.user.is_teacher:
+        messages.error(request, "Access denied.")
+        return redirect('accounts:login')
+    
+    # Get subjects taught by this teacher
+    subjects = Subject.objects.filter(
+        teacher=request.user
+    ).select_related('course', 'class_assigned').order_by('course__code')
+    
+    # Get time slots for the form
+    time_slots = TimeSlot.objects.all().order_by('start_time')
+    
+    context = {
+        'subjects': subjects,
+        'time_slots': time_slots,
+        'exam_types': Exam.EXAM_TYPE_CHOICES,
+    }
+    return render(request, 'teachers/exam_select.html', context)
+
+
+@login_required
+def schedule_exam(request):
+    """Create exam records for selected subjects."""
+    if not request.user.is_teacher:
+        messages.error(request, "Access denied.")
+        return redirect('accounts:login')
+    
+    if request.method == 'POST':
+        exam_name = request.POST.get('exam_name', '').strip()
+        exam_type = request.POST.get('exam_type', 'quiz')
+        exam_date = request.POST.get('exam_date')
+        exam_time = request.POST.get('exam_time')
+        duration_hours = request.POST.get('duration_hours', '1')
+        duration_minutes = request.POST.get('duration_minutes', '0')
+        total_marks = request.POST.get('total_marks', '100')
+        pass_marks = request.POST.get('pass_marks', '40')
+        instructions = request.POST.get('instructions', '').strip()
+        selected_subjects = request.POST.getlist('subjects')
+        
+        # Validation
+        if not exam_name:
+            messages.error(request, "Exam name is required.")
+            return redirect('teachers:exam_select')
+        
+        if not selected_subjects:
+            messages.error(request, "Please select at least one subject.")
+            return redirect('teachers:exam_select')
+        
+        try:
+            total_marks = int(total_marks)
+            pass_marks = int(pass_marks)
+            duration_hours = int(duration_hours)
+            duration_minutes = int(duration_minutes)
+            
+            if total_marks < 1 or pass_marks < 1:
+                raise ValueError("Marks must be positive numbers.")
+            if pass_marks > total_marks:
+                raise ValueError("Pass marks cannot exceed total marks.")
+        except (ValueError, TypeError) as e:
+            messages.error(request, f"Invalid input: {str(e)}")
+            return redirect('teachers:exam_select')
+        
+        # Combine date and time
+        try:
+            exam_datetime = datetime.fromisoformat(f"{exam_date}T{exam_time}")
+        except (ValueError, TypeError):
+            messages.error(request, "Invalid date or time format.")
+            return redirect('teachers:exam_select')
+        
+        # Calculate duration
+        duration = timedelta(hours=duration_hours, minutes=duration_minutes)
+        
+        # Create exam for each selected subject
+        created_count = 0
+        for subject_id in selected_subjects:
+            try:
+                subject = Subject.objects.get(
+                    id=subject_id,
+                    teacher=request.user
+                )
+                exam = Exam.objects.create(
+                    name=exam_name,
+                    exam_type=exam_type,
+                    subject=subject,
+                    date=exam_datetime,
+                    duration=duration,
+                    total_marks=total_marks,
+                    pass_marks=pass_marks,
+                    instructions=instructions,
+                    created_by=request.user
+                )
+                created_count += 1
+            except Subject.DoesNotExist:
+                messages.warning(request, f"Subject ID {subject_id} not found or not assigned to you.")
+                continue
+        
+        if created_count > 0:
+            messages.success(request, f"Successfully created {created_count} exam record(s) for {exam_name}.")
+            return redirect('teachers:dashboard')
+        else:
+            messages.error(request, "No exams were created. Please check the selected subjects.")
+            return redirect('teachers:exam_select')
+    
+    return redirect('teachers:exam_select')
+
+
+@login_required
+def my_classes(request):
+    """Display classes managed by the teacher"""
+    if not request.user.is_teacher:
+        messages.error(request, "Access denied.")
+        return redirect('accounts:login')
+    
+    from students.models import Student
+    
+    managed_classes = Class.objects.filter(
+        class_teacher=request.user
+    ).select_related('department')
+    
+    classes_data = []
+    for cls in managed_classes:
+        students = Student.objects.filter(student_class=cls).select_related('user').count()
+        subjects = Subject.objects.filter(class_assigned=cls).count()
+        classes_data.append({
+            'class': cls,
+            'students_count': students,
+            'subjects_count': subjects,
+        })
+    
+    context = {
+        'classes_data': classes_data,
+    }
+    return render(request, 'teachers/my_classes.html', context)
+
+
+@login_required
+def enter_grades(request):
+    """Allow teachers to enter student grades for exams"""
+    if not request.user.is_teacher:
+        messages.error(request, "Access denied.")
+        return redirect('accounts:login')
+    
+    from academics.models import Result
+    from students.models import Student
+    
+    selected_exam_id = request.GET.get('exam')
+    selected_exam = None
+    students_results = []
+    
+    # Get exams created by this teacher
+    my_exams = Exam.objects.filter(
+        created_by=request.user
+    ).select_related('subject__course', 'subject__class_assigned')
+    
+    if selected_exam_id:
+        try:
+            selected_exam = my_exams.get(id=selected_exam_id)
+            # Get all students in the class
+            students = Student.objects.filter(
+                student_class=selected_exam.subject.class_assigned
+            ).select_related('user')
+            
+            for student in students:
+                result, created = Result.objects.get_or_create(
+                    student=student.user,
+                    exam=selected_exam
+                )
+                students_results.append({
+                    'student': student,
+                    'result': result,
+                })
+        except Exam.DoesNotExist:
+            messages.error(request, "Exam not found.")
+    
+    if request.method == 'POST':
+        marks_data = {}
+        remarks_data = {}
+        
+        for key, value in request.POST.items():
+            if key.startswith('marks_'):
+                result_id = key.split('marks_')[1]
+                marks_data[result_id] = value
+            elif key.startswith('remarks_'):
+                result_id = key.split('remarks_')[1]
+                remarks_data[result_id] = value
+        
+        updated_count = 0
+        for result_id, marks in marks_data.items():
+            try:
+                marks = int(marks)
+                if marks < 0 or marks > selected_exam.total_marks:
+                    messages.warning(request, f"Invalid marks: {marks}. Must be 0-{selected_exam.total_marks}")
+                    continue
+                
+                result = Result.objects.get(id=result_id)
+                result.marks_obtained = marks
+                result.remarks = remarks_data.get(result_id, '')
+                result.save()
+                updated_count += 1
+            except (ValueError, Result.DoesNotExist):
+                continue
+        
+        messages.success(request, f"Updated grades for {updated_count} students.")
+        return redirect(f'teachers:enter_grades?exam={selected_exam_id}')
+    
+    context = {
+        'my_exams': my_exams,
+        'selected_exam': selected_exam,
+        'students_results': students_results,
+    }
+    return render(request, 'teachers/enter_grades.html', context)

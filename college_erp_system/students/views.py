@@ -1,12 +1,13 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.db.models import Q, Avg
+from django.db.models import Q, Avg, F
+from django.db import models
 from django.utils import timezone
 from datetime import datetime, timedelta
 
 from academics.models import (
-    Timetable, Attendance, Exam, Result, Fee, Subject, Course, AcademicCalendar, TeacherTimetable
+    Timetable, Attendance, Exam, Result, Fee, Subject, Course, AcademicCalendar
 )
 from .models import Student, Notification
 
@@ -49,26 +50,12 @@ def dashboard(request):
         Q(target_audience='individual_student', target_student=student)
     ).order_by('-created_at')[:5]
     
-    # Get upcoming academic calendar events
-    today = timezone.now().date()
-    upcoming_calendar_events = AcademicCalendar.objects.filter(
-        start_date__gte=today
-    ).order_by('start_date')[:5]
-    
-    # Get current ongoing events
-    ongoing_events = AcademicCalendar.objects.filter(
-        start_date__lte=today,
-        end_date__gte=today
-    ).order_by('start_date')
-    
     context = {
         'student': student,
         'attendance_percentage': round(attendance_percentage, 1),
         'upcoming_exams': upcoming_exams,
         'pending_fees': pending_fees,
         'recent_notifications': recent_notifications,
-        'upcoming_calendar_events': upcoming_calendar_events,
-        'ongoing_events': ongoing_events,
     }
     return render(request, 'students/dashboard.html', context)
 
@@ -270,53 +257,87 @@ def attendance(request):
 
 @login_required
 def exams(request):
-    """Display upcoming and past exams"""
+    """Display upcoming and past exams with results"""
     if not request.user.is_student:
         messages.error(request, "Access denied.")
         return redirect('accounts:login')
     
     student = request.user.student_profile
     
+    # Get all exams for student's class
     upcoming_exams = Exam.objects.filter(
         subject__class_assigned=student.student_class,
         date__gte=timezone.now()
-    ).select_related('subject__course').order_by('date')
+    ).select_related('subject__course', 'subject__teacher').order_by('date')
     
     past_exams = Exam.objects.filter(
         subject__class_assigned=student.student_class,
         date__lt=timezone.now()
-    ).select_related('subject__course').order_by('-date')
+    ).select_related('subject__course', 'subject__teacher').order_by('-date')
+    
+    # Get student results for past exams
+    from academics.models import Result
+    results_map = {}
+    student_results = Result.objects.filter(
+        student=request.user,
+        exam__in=past_exams
+    ).select_related('exam')
+    
+    for result in student_results:
+        results_map[result.exam.id] = result
+    
+    # Add results to past exams
+    past_exams_with_results = []
+    for exam in past_exams:
+        result = results_map.get(exam.id)
+        past_exams_with_results.append({
+            'exam': exam,
+            'result': result,
+        })
     
     context = {
         'student': student,
         'upcoming_exams': upcoming_exams,
-        'past_exams': past_exams,
+        'past_exams_with_results': past_exams_with_results,
     }
     return render(request, 'students/exams.html', context)
 
 @login_required
 def results(request):
-    """Display exam results"""
+    """Display exam results and grades"""
     if not request.user.is_student:
         messages.error(request, "Access denied.")
         return redirect('accounts:login')
     
     student = request.user.student_profile
     
+    # Get all results (published and unpublished)
     results = Result.objects.filter(
-        student=request.user,
-        is_published=True
-    ).select_related('exam__subject__course').order_by('-exam__date')
+        student=request.user
+    ).select_related('exam__subject__course', 'exam__created_by').order_by('-exam__date')
     
-    # Calculate overall performance
-    total_marks = sum([r.exam.total_marks for r in results])
-    obtained_marks = sum([r.marks_obtained or 0 for r in results])
+    # Separate published and unpublished results
+    published_results = results.filter(is_published=True)
+    unpublished_results = results.filter(is_published=False)
+    
+    # Calculate overall performance (only published)
+    total_marks = sum([r.exam.total_marks for r in published_results])
+    obtained_marks = sum([r.marks_obtained or 0 for r in published_results])
     overall_percentage = (obtained_marks / total_marks * 100) if total_marks > 0 else 0
+    
+    # Count pass/fail
+    passed = published_results.filter(marks_obtained__gte=models.F('exam__pass_marks')).count()
+    failed = published_results.exclude(marks_obtained__gte=models.F('exam__pass_marks')).count()
     
     context = {
         'student': student,
+        'published_results': published_results,
+        'unpublished_results': unpublished_results,
         'results': results,
         'overall_percentage': round(overall_percentage, 1),
+        'passed': passed,
+        'failed': failed,
+        'total_exams': len(published_results),
     }
     return render(request, 'students/results.html', context)
 
@@ -340,6 +361,30 @@ def fees(request):
     total_pending = sum([fee.amount for fee in pending_fees])
     total_paid = sum([fee.amount for fee in paid_fees])
     
+    # Handle payment processing
+    if request.method == 'POST':
+        fee_id = request.POST.get('fee_id')
+        payment_method = request.POST.get('payment_method', 'online')
+        
+        try:
+            fee = Fee.objects.get(id=fee_id, student=request.user)
+            
+            if fee.payment_status != 'paid':
+                # Update fee status
+                fee.payment_status = 'paid'
+                fee.payment_date = timezone.now().date()
+                fee.payment_method = payment_method
+                fee.transaction_id = f"TXN-{fee.id}-{timezone.now().timestamp()}"
+                fee.save()
+                
+                messages.success(request, f"Payment of ₹{fee.amount} successful! Receipt has been generated.")
+            else:
+                messages.info(request, "This fee has already been paid.")
+        except Fee.DoesNotExist:
+            messages.error(request, "Fee not found.")
+        
+        return redirect('students:fees')
+    
     context = {
         'student': student,
         'all_fees': all_fees,
@@ -349,6 +394,26 @@ def fees(request):
         'total_paid': total_paid,
     }
     return render(request, 'students/fees.html', context)
+
+
+@login_required
+def fee_receipt(request, fee_id):
+    """Generate and display fee payment receipt"""
+    if not request.user.is_student:
+        messages.error(request, "Access denied.")
+        return redirect('accounts:login')
+    
+    try:
+        fee = Fee.objects.get(id=fee_id, student=request.user)
+    except Fee.DoesNotExist:
+        messages.error(request, "Fee receipt not found.")
+        return redirect('students:fees')
+    
+    context = {
+        'student': request.user.student_profile,
+        'fee': fee,
+    }
+    return render(request, 'students/fee_receipt.html', context)
 
 @login_required
 def notifications(request):
@@ -375,37 +440,18 @@ def notifications(request):
 
 @login_required
 def academic_calendar(request):
-    """Display academic calendar for student"""
+    """Display academic calendar for the institution"""
     if not request.user.is_student:
         messages.error(request, "Access denied.")
         return redirect('accounts:login')
     
     student = request.user.student_profile
     
-    # Get filter parameters
-    selected_year = request.GET.get('year', '2025-2026')
-    
-    # Get all academic calendar events
-    calendar_events = AcademicCalendar.objects.filter(
-        academic_year=selected_year
-    ).order_by('start_date')
-    
-    # Get unique academic years
-    academic_years = AcademicCalendar.objects.values_list('academic_year', flat=True).distinct()
-    
-    # Categorize events
-    categorized_events = {}
-    for event in calendar_events:
-        category = event.get_category_display()
-        if category not in categorized_events:
-            categorized_events[category] = []
-        categorized_events[category].append(event)
+    # Get academic calendar events
+    calendar_events = AcademicCalendar.objects.all().order_by('start_date')
     
     context = {
         'student': student,
         'calendar_events': calendar_events,
-        'categorized_events': categorized_events,
-        'academic_years': academic_years,
-        'selected_year': selected_year,
     }
     return render(request, 'students/academic_calendar.html', context)

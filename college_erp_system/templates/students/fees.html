@@ -1,13 +1,229 @@
 {% extends 'base.html' %}
 
-{% block title %}Fees{% endblock %}
+{% block title %}My Fees{% endblock %}
 
 {% block content %}
 <div class="py-4">
-    <h1 class="h2 mb-4">Fees</h1>
-    <div class="alert alert-info">
-        <i class="bi bi-info-circle"></i>
-        Fee management features coming soon!
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h2"><i class="bi bi-credit-card"></i> Fee Management</h1>
     </div>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                <i class="bi bi-{% if message.tags == 'success' %}check-circle{% elif message.tags == 'info' %}info-circle{% else %}exclamation-circle{% endif %}"></i>
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <!-- Fee Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card border-success shadow-sm">
+                <div class="card-body text-center">
+                    <h6 class="card-title text-muted">Total Paid</h6>
+                    <h3 class="text-success">₹{{ total_paid }}</h3>
+                    <small class="text-muted">{{ paid_fees|length }} Fees Paid</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-danger shadow-sm">
+                <div class="card-body text-center">
+                    <h6 class="card-title text-muted">Total Pending</h6>
+                    <h3 class="text-danger">₹{{ total_pending }}</h3>
+                    <small class="text-muted">{{ pending_fees|length }} Fees Pending</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-primary shadow-sm">
+                <div class="card-body text-center">
+                    <h6 class="card-title text-muted">Total Fees</h6>
+                    <h3 class="text-primary">₹{{ total_paid|add:total_pending }}</h3>
+                    <small class="text-muted">{{ all_fees|length }} Total Records</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pending Fees Section -->
+    {% if pending_fees %}
+        <div class="card shadow-lg mb-4">
+            <div class="card-header bg-danger text-white">
+                <h5 class="mb-0"><i class="bi bi-clock-history"></i> Pending Fees ({{ pending_fees|length }})</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover table-bordered">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Fee Type</th>
+                                <th>Amount</th>
+                                <th>Due Date</th>
+                                <th>Status</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for fee in pending_fees %}
+                                <tr>
+                                    <td class="fw-bold">
+                                        {{ fee.get_fee_type_display }}
+                                        <br>
+                                        <small class="text-muted">{{ fee.academic_year }} - Sem {{ fee.semester }}</small>
+                                    </td>
+                                    <td class="text-end fw-bold text-danger">₹{{ fee.amount }}</td>
+                                    <td>
+                                        {{ fee.due_date|date:"d M, Y" }}
+                                        {% if fee.is_overdue %}
+                                            <br>
+                                            <span class="badge bg-danger">OVERDUE</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if fee.payment_status == 'pending' %}
+                                            <span class="badge bg-warning">Pending</span>
+                                        {% elif fee.payment_status == 'overdue' %}
+                                            <span class="badge bg-danger">Overdue</span>
+                                        {% else %}
+                                            <span class="badge bg-success">Paid</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <button class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#paymentModal{{ fee.id }}">
+                                            <i class="bi bi-credit-card"></i> Pay Now
+                                        </button>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Payment Modals -->
+        {% for fee in pending_fees %}
+            <div class="modal fade" id="paymentModal{{ fee.id }}" tabindex="-1">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header bg-success text-white">
+                            <h5 class="modal-title">Pay {{ fee.get_fee_type_display }}</h5>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="alert alert-info">
+                                <strong>Payment Details</strong>
+                                <ul class="mb-0 mt-2">
+                                    <li>Fee Type: {{ fee.get_fee_type_display }}</li>
+                                    <li>Amount: <strong>₹{{ fee.amount }}</strong></li>
+                                    <li>Due Date: {{ fee.due_date|date:"d M, Y" }}</li>
+                                    <li>Academic Year: {{ fee.academic_year }}</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                            <form method="post" class="d-inline">
+                                {% csrf_token %}
+                                <input type="hidden" name="fee_id" value="{{ fee.id }}">
+                                <input type="hidden" name="payment_method" value="online">
+                                <button type="submit" class="btn btn-success">
+                                    <i class="bi bi-check-circle"></i> Confirm Payment
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <!-- Paid Fees Section -->
+    {% if paid_fees %}
+        <div class="card shadow-lg mb-4">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0"><i class="bi bi-check-circle"></i> Paid Fees ({{ paid_fees|length }})</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover table-bordered">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Fee Type</th>
+                                <th>Amount</th>
+                                <th>Payment Date</th>
+                                <th>Method</th>
+                                <th>Transaction ID</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for fee in paid_fees %}
+                                <tr>
+                                    <td class="fw-bold">
+                                        {{ fee.get_fee_type_display }}
+                                        <br>
+                                        <small class="text-muted">{{ fee.academic_year }} - Sem {{ fee.semester }}</small>
+                                    </td>
+                                    <td class="text-end fw-bold text-success">₹{{ fee.amount }}</td>
+                                    <td>{{ fee.payment_date|date:"d M, Y"|default:"--" }}</td>
+                                    <td>
+                                        <span class="badge bg-info">
+                                            {{ fee.payment_method|default:"--"|title }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <small class="font-monospace">{{ fee.transaction_id|default:"--" }}</small>
+                                    </td>
+                                    <td>
+                                        <a href="{% url 'students:fee_receipt' fee.id %}" class="btn btn-sm btn-primary" target="_blank">
+                                            <i class="bi bi-download"></i> Receipt
+                                        </a>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+
+    <!-- No Fees Message -->
+    {% if not all_fees %}
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle"></i>
+            No fee records found. Please contact the administration for fee assignment.
+        </div>
+    {% endif %}
+
 </div>
+
+<style>
+    .table-hover tbody tr:hover {
+        background-color: #f8f9fa;
+    }
+
+    .card {
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .card:hover {
+        transform: translateY(-2px);
+    }
+
+    .badge {
+        font-size: 0.75rem;
+        padding: 0.35rem 0.6rem;
+    }
+
+    .font-monospace {
+        font-family: 'Monaco', 'Courier New', monospace;
+        font-size: 0.875rem;
+    }
+</style>
 {% endblock %}

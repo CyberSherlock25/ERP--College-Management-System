@@ -1,0 +1,214 @@
+{% extends 'base.html' %}
+
+{% block title %}Fee Payment Receipt{% endblock %}
+
+{% block content %}
+<div class="py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <!-- Receipt Header -->
+            <div class="card shadow-lg print-page">
+                <!-- Print Button -->
+                <div class="d-print-none mb-3">
+                    <button onclick="window.print()" class="btn btn-primary">
+                        <i class="bi bi-printer"></i> Print Receipt
+                    </button>
+                    <a href="{% url 'students:fees' %}" class="btn btn-secondary">
+                        <i class="bi bi-arrow-left"></i> Back to Fees
+                    </a>
+                </div>
+
+                <!-- Receipt Content -->
+                <div class="card-body p-5 receipt-content">
+                    <!-- College Header -->
+                    <div class="text-center mb-5 pb-3 border-bottom">
+                        <h2 class="mb-1">
+                            <i class="bi bi-mortarboard-fill text-primary"></i>
+                            College Name
+                        </h2>
+                        <p class="text-muted mb-1">Address: Your College Address</p>
+                        <p class="text-muted mb-1">Phone: +91-XXXXXXXXXX | Email: college@example.com</p>
+                        <h4 class="text-success mt-3">FEE RECEIPT</h4>
+                    </div>
+
+                    <!-- Receipt Number and Date -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <p><strong>Receipt Number:</strong> <span class="font-monospace">RCP-{{ fee.id }}-{{ fee.payment_date|date:'dmy' }}</span></p>
+                            <p><strong>Transaction ID:</strong> <span class="font-monospace">{{ fee.transaction_id }}</span></p>
+                        </div>
+                        <div class="col-md-6 text-end">
+                            <p><strong>Payment Date:</strong> {{ fee.payment_date|date:'d-m-Y' }}</p>
+                            <p><strong>Receipt Date:</strong> {% now 'd-m-Y' %}</p>
+                        </div>
+                    </div>
+
+                    <!-- Student Details -->
+                    <div class="mb-4 pb-3 border-top border-bottom">
+                        <h5 class="mb-3">Student Details</h5>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p><strong>Student Name:</strong> {{ student.user.get_full_name }}</p>
+                                <p><strong>Roll Number:</strong> {{ student.roll_number }}</p>
+                            </div>
+                            <div class="col-md-6">
+                                <p><strong>Department:</strong> {{ student.department.name }}</p>
+                                <p><strong>Class:</strong> {{ student.student_class }}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Fee Details -->
+                    <div class="mb-4">
+                        <h5 class="mb-3">Fee Details</h5>
+                        <table class="table table-bordered">
+                            <tbody>
+                                <tr>
+                                    <th style="width: 50%;">Fee Type</th>
+                                    <td>{{ fee.get_fee_type_display }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Academic Year</th>
+                                    <td>{{ fee.academic_year }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Semester</th>
+                                    <td>{{ fee.get_semester_display }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Due Date</th>
+                                    <td>{{ fee.due_date|date:'d-m-Y' }}</td>
+                                </tr>
+                                <tr class="table-light">
+                                    <th>Fee Amount</th>
+                                    <td><strong>\u20b9{{ fee.amount|floatformat:2 }}</strong></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Payment Details -->
+                    <div class="mb-4 pb-3 border-top border-bottom">
+                        <h5 class="mb-3">Payment Details</h5>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p><strong>Payment Method:</strong> {{ fee.payment_method|title }}</p>
+                            </div>
+                            <div class="col-md-6">
+                                <p><strong>Payment Status:</strong> <span class="badge bg-success">PAID</span></p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Amount Section -->
+                    <div class="mb-4 p-3 bg-light rounded">
+                        <div class="row align-items-center">
+                            <div class="col-md-8">
+                                <h5 class="mb-0">Total Amount Paid</h5>
+                            </div>
+                            <div class="col-md-4 text-end">
+                                <h3 class="text-success mb-0">\u20b9{{ fee.amount|floatformat:2 }}</h3>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Remarks -->
+                    {% if fee.remarks %}
+                        <div class="mb-4">
+                            <p><strong>Remarks:</strong></p>
+                            <p class="text-muted">{{ fee.remarks }}</p>
+                        </div>
+                    {% endif %}
+
+                    <!-- Footer -->
+                    <div class="mt-5 pt-4 text-center border-top">
+                        <p class="text-muted small mb-1">This receipt is valid proof of payment.</p>
+                        <p class="text-muted small mb-3">Please keep this receipt for your records.</p>
+                        <p class="text-muted small">{{ fee.payment_date|date:'d-m-Y H:i' }}</p>
+                        
+                        <div class="mt-4">
+                            <p class="text-muted small"><strong>Authorized By: College Administration</strong></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Additional Info -->
+            <div class="alert alert-info mt-4 d-print-none">
+                <i class="bi bi-info-circle"></i>
+                <strong>Note:</strong> This receipt has been digitally generated. No physical signature is required. 
+                For any queries, contact the college administration office.
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .receipt-content {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    .font-monospace {
+        font-family: 'Courier New', monospace;
+        letter-spacing: 0.05em;
+    }
+
+    @media print {
+        body {
+            background: white;
+        }
+
+        .receipt-content {
+            box-shadow: none;
+        }
+
+        .card {
+            border: none;
+            box-shadow: none;
+        }
+
+        .d-print-none {
+            display: none !important;
+        }
+
+        .print-page {
+            page-break-after: always;
+        }
+
+        table {
+            border-collapse: collapse;
+        }
+
+        th, td {
+            border: 1px solid #000 !important;
+        }
+
+        h2, h3, h4, h5 {
+            color: #000;
+        }
+
+        .text-success {
+            color: #28a745 !important;
+        }
+    }
+
+    .table {
+        margin-bottom: 0;
+    }
+
+    .table th {
+        background-color: #f8f9fa;
+        font-weight: 600;
+        border-color: #dee2e6;
+    }
+
+    .table-light {
+        background-color: #f8f9fa;
+    }
+
+    .badge {
+        padding: 0.5rem 1rem;
+        font-size: 0.9rem;
+    }
+</style>
+{% endblock %}

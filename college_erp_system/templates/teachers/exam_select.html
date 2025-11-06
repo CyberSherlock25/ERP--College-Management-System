@@ -1,0 +1,177 @@
+{% extends 'base.html' %}
+
+{% block title %}Schedule Exam{% endblock %}
+
+{% block content %}
+<div class="py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h2"><i class="bi bi-pencil-square"></i> Schedule Exam</h1>
+        <a href="{% url 'teachers:dashboard' %}" class="btn btn-secondary">
+            <i class="bi bi-arrow-left"></i> Back to Dashboard
+        </a>
+    </div>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                <i class="bi bi-exclamation-circle"></i> {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="bi bi-calendar-event"></i> Create New Exam</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" action="{% url 'teachers:schedule_exam' %}" class="needs-validation">
+                        {% csrf_token %}
+
+                        <!-- Exam Name -->
+                        <div class="mb-3">
+                            <label for="exam_name" class="form-label fw-bold">Exam Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="exam_name" name="exam_name" 
+                                   placeholder="e.g., Midterm Exam, Quiz 1" required>
+                            <small class="form-text text-muted">Enter a descriptive name for the exam</small>
+                        </div>
+
+                        <!-- Exam Type -->
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="exam_type" class="form-label fw-bold">Exam Type <span class="text-danger">*</span></label>
+                                <select class="form-select" id="exam_type" name="exam_type" required>
+                                    <option value="">-- Select Type --</option>
+                                    {% for value, label in exam_types %}
+                                        <option value="{{ value }}">{{ label }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <!-- Total Marks -->
+                            <div class="col-md-6 mb-3">
+                                <label for="total_marks" class="form-label fw-bold">Total Marks <span class="text-danger">*</span></label>
+                                <input type="number" class="form-control" id="total_marks" name="total_marks" 
+                                       value="100" min="1" required>
+                            </div>
+                        </div>
+
+                        <!-- Pass Marks and Duration -->
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="pass_marks" class="form-label fw-bold">Pass Marks <span class="text-danger">*</span></label>
+                                <input type="number" class="form-control" id="pass_marks" name="pass_marks" 
+                                       value="40" min="1" required>
+                                <small class="form-text text-muted">Minimum marks to pass</small>
+                            </div>
+                        </div>
+
+                        <!-- Date and Time -->
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="exam_date" class="form-label fw-bold">Exam Date <span class="text-danger">*</span></label>
+                                <input type="date" class="form-control" id="exam_date" name="exam_date" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="exam_time" class="form-label fw-bold">Exam Time <span class="text-danger">*</span></label>
+                                <input type="time" class="form-control" id="exam_time" name="exam_time" required>
+                            </div>
+                        </div>
+
+                        <!-- Duration -->
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="duration_hours" class="form-label fw-bold">Duration - Hours <span class="text-danger">*</span></label>
+                                <input type="number" class="form-control" id="duration_hours" name="duration_hours" 
+                                       value="1" min="0" max="10" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="duration_minutes" class="form-label fw-bold">Duration - Minutes</label>
+                                <input type="number" class="form-control" id="duration_minutes" name="duration_minutes" 
+                                       value="0" min="0" max="59">
+                            </div>
+                        </div>
+
+                        <!-- Instructions -->
+                        <div class="mb-3">
+                            <label for="instructions" class="form-label fw-bold">Instructions (Optional)</label>
+                            <textarea class="form-control" id="instructions" name="instructions" rows="3" 
+                                      placeholder="e.g., Use of calculator not allowed, etc."></textarea>
+                        </div>
+
+                        <!-- Subjects Selection -->
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">Select Subjects <span class="text-danger">*</span></label>
+                            <div class="alert alert-info" role="alert">
+                                <i class="bi bi-info-circle"></i> An exam record will be created for each selected subject.
+                            </div>
+                            {% if subjects %}
+                                <div class="row">
+                                    {% for subject in subjects %}
+                                    <div class="col-md-6 mb-2">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="subjects" 
+                                                   value="{{ subject.id }}" id="subject_{{ subject.id }}">
+                                            <label class="form-check-label" for="subject_{{ subject.id }}">
+                                                <strong>{{ subject.course.code }}</strong> - {{ subject.course.name }}
+                                                <br>
+                                                <small class="text-muted">Class: {{ subject.class_assigned }}</small>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <div class="alert alert-warning">
+                                    <i class="bi bi-exclamation-triangle"></i> No subjects assigned to you. Please contact the administration.
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Buttons -->
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary btn-lg" {% if not subjects %}disabled{% endif %}>
+                                <i class="bi bi-check-circle"></i> Create Exam
+                            </button>
+                            <a href="{% url 'teachers:dashboard' %}" class="btn btn-secondary btn-lg">
+                                <i class="bi bi-x-circle"></i> Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Info Box -->
+            <div class="card mt-4 border-info">
+                <div class="card-header bg-info text-white">
+                    <h6 class="mb-0"><i class="bi bi-lightbulb"></i> Tips</h6>
+                </div>
+                <div class="card-body">
+                    <ul class="mb-0">
+                        <li>Select at least one subject to create an exam</li>
+                        <li>Pass marks should be less than or equal to total marks</li>
+                        <li>Exam date and time must be in the future</li>
+                        <li>A separate exam record will be created for each selected subject</li>
+                        <li>Students can view exam details in their academic section</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<style>
+.form-check-label {
+    cursor: pointer;
+    padding-left: 0.5rem;
+}
+
+.form-check-input:checked {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+}
+</style>
+{% endblock %}
