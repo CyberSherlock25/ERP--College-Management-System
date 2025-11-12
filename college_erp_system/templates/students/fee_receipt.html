@@ -8,16 +8,8 @@
         <div class="col-lg-8">
             <!-- Receipt Header -->
             <div class="card shadow-lg print-page">
-                <!-- Print Button -->
-                <div class="d-print-none mb-3">
-                    <button onclick="window.print()" class="btn btn-primary">
-                        <i class="bi bi-printer"></i> Print Receipt
-                    </button>
-                    <a href="{% url 'students:fees' %}" class="btn btn-secondary">
-                        <i class="bi bi-arrow-left"></i> Back to Fees
-                    </a>
-                </div>
-
+                
+                
                 <!-- Receipt Content -->
                 <div class="card-body p-5 receipt-content">
                     <!-- College Header -->
@@ -34,8 +26,8 @@
                     <!-- Receipt Number and Date -->
                     <div class="row mb-4">
                         <div class="col-md-6">
-                            <p><strong>Receipt Number:</strong> <span class="font-monospace">RCP-{{ fee.id }}-{{ fee.payment_date|date:'dmy' }}</span></p>
-                            <p><strong>Transaction ID:</strong> <span class="font-monospace">{{ fee.transaction_id }}</span></p>
+                            <p><strong>Receipt Number:</strong> <span class="font-monospace">{{ receipt_number }}</span></p>
+                            <p><strong>Transaction ID:</strong> <span class="font-monospace">{% if transaction %}{{ transaction.transaction_id }}{% elif fee.transaction_id %}{{ fee.transaction_id }}{% else %}N/A{% endif %}</span></p>
                         </div>
                         <div class="col-md-6 text-end">
                             <p><strong>Payment Date:</strong> {{ fee.payment_date|date:'d-m-Y' }}</p>
@@ -49,11 +41,13 @@
                         <div class="row">
                             <div class="col-md-6">
                                 <p><strong>Student Name:</strong> {{ student.user.get_full_name }}</p>
-                                <p><strong>Roll Number:</strong> {{ student.roll_number }}</p>
+                                <p><strong>PRN (Roll Number):</strong> <span class="font-monospace fw-bold text-primary">{{ prn }}</span></p>
+                                <p><strong>Admission Number:</strong> <span class="font-monospace fw-bold">{{ admission_number }}</span></p>
                             </div>
                             <div class="col-md-6">
                                 <p><strong>Department:</strong> {{ student.department.name }}</p>
                                 <p><strong>Class:</strong> {{ student.student_class }}</p>
+                                <p><strong>Academic Year:</strong> {{ fee.academic_year }}</p>
                             </div>
                         </div>
                     </div>
@@ -81,7 +75,7 @@
                                 </tr>
                                 <tr class="table-light">
                                     <th>Fee Amount</th>
-                                    <td><strong>\u20b9{{ fee.amount|floatformat:2 }}</strong></td>
+                                    <td><strong>₹{{ fee.amount|floatformat:2 }}</strong></td>
                                 </tr>
                             </tbody>
                         </table>
@@ -90,14 +84,43 @@
                     <!-- Payment Details -->
                     <div class="mb-4 pb-3 border-top border-bottom">
                         <h5 class="mb-3">Payment Details</h5>
-                        <div class="row">
-                            <div class="col-md-6">
-                                <p><strong>Payment Method:</strong> {{ fee.payment_method|title }}</p>
-                            </div>
-                            <div class="col-md-6">
-                                <p><strong>Payment Status:</strong> <span class="badge bg-success">PAID</span></p>
-                            </div>
-                        </div>
+                        <table class="table table-bordered table-sm">
+                            <tbody>
+                                <tr>
+                                    <th style="width: 40%;">Payment Method</th>
+                                    <td>
+                                        {% if transaction and transaction.payment_method %}
+                                            {{ transaction.payment_method.get_method_type_display|title }}
+                                            {% if transaction.reference_number %}
+                                                (Ref: {{ transaction.reference_number }})
+                                            {% endif %}
+                                        {% else %}
+                                            {{ fee.payment_method|title|default:"Online" }}
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>Amount Paid</th>
+                                    <td class="fw-bold text-success">₹{{ transaction.amount|default:fee.amount|floatformat:2 }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Payment Status</th>
+                                    <td><span class="badge bg-success">PAID</span></td>
+                                </tr>
+                                {% if transaction and transaction.completed_at %}
+                                    <tr>
+                                        <th>Transaction Time</th>
+                                        <td>{{ transaction.completed_at|date:'d-m-Y H:i' }}</td>
+                                    </tr>
+                                {% endif %}
+                                {% if fee.remarks %}
+                                    <tr>
+                                        <th>Remarks</th>
+                                        <td>{{ fee.remarks }}</td>
+                                    </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
                     </div>
 
                     <!-- Amount Section -->
@@ -107,10 +130,21 @@
                                 <h5 class="mb-0">Total Amount Paid</h5>
                             </div>
                             <div class="col-md-4 text-end">
-                                <h3 class="text-success mb-0">\u20b9{{ fee.amount|floatformat:2 }}</h3>
+                                <h3 class="text-success mb-0">₹{{ fee.amount|floatformat:2 }}</h3>
                             </div>
                         </div>
                     </div>
+                    <!-- Print Button -->
+                <div class="d-print-none mb-3">
+                    <button onclick="window.print()" class="btn btn-primary">
+                        <i class="bi bi-printer"></i> Print Receipt
+                    </button>
+                    <a href="{% url 'students:download_fee_receipt' fee.id %}" class="btn btn-success">
+                        <i class="bi bi-download"></i> Download PDF
+                    </a>
+                    
+                </div>
+
 
                     <!-- Remarks -->
                     {% if fee.remarks %}
@@ -124,7 +158,7 @@
                     <div class="mt-5 pt-4 text-center border-top">
                         <p class="text-muted small mb-1">This receipt is valid proof of payment.</p>
                         <p class="text-muted small mb-3">Please keep this receipt for your records.</p>
-                        <p class="text-muted small">{{ fee.payment_date|date:'d-m-Y H:i' }}</p>
+                        <p class="text-muted small">Receipt Generated: {% now 'd-m-Y H:i' %}</p>
                         
                         <div class="mt-4">
                             <p class="text-muted small"><strong>Authorized By: College Administration</strong></p>
@@ -132,6 +166,7 @@
                     </div>
                 </div>
             </div>
+            
 
             <!-- Additional Info -->
             <div class="alert alert-info mt-4 d-print-none">

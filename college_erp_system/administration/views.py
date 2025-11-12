@@ -1367,8 +1367,11 @@ def transaction_history(request):
     summary = transactions.aggregate(
         total_transactions=Count('id'),
         completed_amount=Sum('amount', filter=Q(status='completed')),
+        completed_count=Count('id', filter=Q(status='completed')),
         pending_amount=Sum('amount', filter=Q(status='pending')),
-        failed_amount=Sum('amount', filter=Q(status='failed'))
+        pending_count=Count('id', filter=Q(status='pending')),
+        failed_amount=Sum('amount', filter=Q(status='failed')),
+        failed_count=Count('id', filter=Q(status='failed'))
     )
     
     context = {

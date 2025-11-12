@@ -11,6 +11,7 @@ urlpatterns = [
     path('results/', views.results, name='results'),
     path('fees/', views.fees, name='fees'),
     path('fees/<int:fee_id>/receipt/', views.fee_receipt, name='fee_receipt'),
+    path('fees/<int:fee_id>/download/', views.download_fee_receipt, name='download_fee_receipt'),
     path('notifications/', views.notifications, name='notifications'),
     path('academic-calendar/', views.academic_calendar, name='academic_calendar'),
 ]

@@ -1,0 +1,355 @@
+{% extends 'base.html' %}
+
+{% block title %}Transaction History - Administration{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h1 class="h2">
+                    <i class="bi bi-receipt"></i> Transaction History
+                </h1>
+                <a href="{% url 'administration:dashboard' %}" class="btn btn-secondary">
+                    <i class="bi bi-arrow-left"></i> Back to Dashboard
+                </a>
+            </div>
+            <p class="text-muted">Track and manage all payment transactions</p>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card border-success shadow-sm">
+                <div class="card-body text-center">
+                    <h6 class="card-title text-muted mb-2">Total Transactions</h6>
+                    <h3 class="text-success">{{ summary.total_transactions|default:0 }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-primary shadow-sm">
+                <div class="card-body text-center">
+                    <h6 class="card-title text-muted mb-2">Completed</h6>
+                    <h3 class="text-primary">₹{{ summary.completed_amount|default:0|floatformat:2 }}</h3>
+                    <small class="text-muted">{{ summary.completed_count|default:0 }} transactions</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-warning shadow-sm">
+                <div class="card-body text-center">
+                    <h6 class="card-title text-muted mb-2">Pending</h6>
+                    <h3 class="text-warning">₹{{ summary.pending_amount|default:0|floatformat:2 }}</h3>
+                    <small class="text-muted">{{ summary.pending_count|default:0 }} transactions</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-danger shadow-sm">
+                <div class="card-body text-center">
+                    <h6 class="card-title text-muted mb-2">Failed/Cancelled</h6>
+                    <h3 class="text-danger">{{ summary.failed_count|default:0 }}</h3>
+                    <small class="text-muted">transactions</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters Section -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0"><i class="bi bi-funnel"></i> Filter Transactions</h5>
+        </div>
+        <div class="card-body">
+            <form method="GET" class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Status</label>
+                    <select name="status" class="form-select">
+                        <option value="all" {% if request.GET.status == 'all' or not request.GET.status %}selected{% endif %}>All Status</option>
+                        <option value="completed" {% if request.GET.status == 'completed' %}selected{% endif %}>Completed</option>
+                        <option value="pending" {% if request.GET.status == 'pending' %}selected{% endif %}>Pending</option>
+                        <option value="failed" {% if request.GET.status == 'failed' %}selected{% endif %}>Failed</option>
+                        <option value="refunded" {% if request.GET.status == 'refunded' %}selected{% endif %}>Refunded</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">From Date</label>
+                    <input type="date" name="date_from" class="form-control" value="{{ request.GET.date_from }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">To Date</label>
+                    <input type="date" name="date_to" class="form-control" value="{{ request.GET.date_to }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Search</label>
+                    <input type="text" name="search" class="form-control" placeholder="Transaction ID, Student Name..." value="{{ request.GET.search }}">
+                </div>
+                <div class="col-12">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-search"></i> Apply Filters
+                    </button>
+                    <a href="{% url 'administration:transaction_history' %}" class="btn btn-secondary">
+                        <i class="bi bi-arrow-clockwise"></i> Reset
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Transactions Table -->
+    <div class="card shadow-sm">
+        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="bi bi-table"></i> Transactions</h5>
+            <span class="badge bg-primary">{{ transactions.count }} Records</span>
+        </div>
+        <div class="table-responsive">
+            {% if transactions %}
+                <table class="table table-hover table-striped mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Transaction ID</th>
+                            <th>Student Name</th>
+                            <th>Fee Type</th>
+                            <th>Amount</th>
+                            <th>Payment Method</th>
+                            <th>Status</th>
+                            <th>Date</th>
+                            <th>Reference</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for transaction in transactions %}
+                            <tr>
+                                <td>
+                                    <span class="font-monospace fw-bold text-primary">{{ transaction.transaction_id }}</span>
+                                </td>
+                                <td>
+                                    <strong>{{ transaction.fee.student.get_full_name }}</strong><br>
+                                    <small class="text-muted">{{ transaction.fee.student.username }}</small>
+                                </td>
+                                <td>
+                                    <span class="badge bg-info">{{ transaction.fee.get_fee_type_display }}</span>
+                                </td>
+                                <td class="fw-bold text-success">₹{{ transaction.amount|floatformat:2 }}</td>
+                                <td>
+                                    {% if transaction.payment_method %}
+                                        <small>{{ transaction.payment_method.get_method_type_display|title }}</small><br>
+                                        <small class="text-muted">{{ transaction.payment_method.name }}</small>
+                                    {% else %}
+                                        <span class="text-muted">—</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if transaction.status == 'completed' %}
+                                        <span class="badge bg-success"><i class="bi bi-check-circle"></i> Completed</span>
+                                    {% elif transaction.status == 'pending' %}
+                                        <span class="badge bg-warning"><i class="bi bi-hourglass-split"></i> Pending</span>
+                                    {% elif transaction.status == 'failed' %}
+                                        <span class="badge bg-danger"><i class="bi bi-x-circle"></i> Failed</span>
+                                    {% elif transaction.status == 'refunded' %}
+                                        <span class="badge bg-secondary"><i class="bi bi-arrow-counterclockwise"></i> Refunded</span>
+                                    {% else %}
+                                        <span class="badge bg-light text-dark">{{ transaction.status|title }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <small>{{ transaction.created_at|date:'d M, Y' }}</small><br>
+                                    <small class="text-muted">{{ transaction.created_at|time:'H:i' }}</small>
+                                </td>
+                                <td>
+                                    {% if transaction.reference_number %}
+                                        <span class="font-monospace">{{ transaction.reference_number }}</span>
+                                    {% else %}
+                                        <span class="text-muted">—</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#detailsModal{{ transaction.id }}" title="View Details">
+                                            <i class="bi bi-eye"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+
+                            <!-- Details Modal -->
+                            <div class="modal fade" id="detailsModal{{ transaction.id }}" tabindex="-1">
+                                <div class="modal-dialog modal-lg">
+                                    <div class="modal-content">
+                                        <div class="modal-header bg-primary text-white">
+                                            <h5 class="modal-title">Transaction Details</h5>
+                                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                        </div>
+                                        <div class="modal-body">
+                                            <div class="row mb-3">
+                                                <div class="col-md-6">
+                                                    <h6 class="text-muted">Transaction ID</h6>
+                                                    <p class="font-monospace fw-bold">{{ transaction.transaction_id }}</p>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <h6 class="text-muted">Status</h6>
+                                                    <p>
+                                                        {% if transaction.status == 'completed' %}
+                                                            <span class="badge bg-success">Completed</span>
+                                                        {% elif transaction.status == 'pending' %}
+                                                            <span class="badge bg-warning">Pending</span>
+                                                        {% else %}
+                                                            <span class="badge bg-danger">{{ transaction.status|title }}</span>
+                                                        {% endif %}
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            <hr>
+
+                                            <h6 class="text-muted mb-3">Student Information</h6>
+                                            <div class="row mb-3">
+                                                <div class="col-md-6">
+                                                    <small class="text-muted">Name</small>
+                                                    <p>{{ transaction.fee.student.get_full_name }}</p>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <small class="text-muted">Username</small>
+                                                    <p>{{ transaction.fee.student.username }}</p>
+                                                </div>
+                                            </div>
+
+                                            <hr>
+
+                                            <h6 class="text-muted mb-3">Fee Information</h6>
+                                            <div class="row mb-3">
+                                                <div class="col-md-6">
+                                                    <small class="text-muted">Fee Type</small>
+                                                    <p>{{ transaction.fee.get_fee_type_display }}</p>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <small class="text-muted">Academic Year</small>
+                                                    <p>{{ transaction.fee.academic_year }}</p>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <small class="text-muted">Semester</small>
+                                                    <p>{{ transaction.fee.get_semester_display }}</p>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <small class="text-muted">Due Date</small>
+                                                    <p>{{ transaction.fee.due_date|date:'d M, Y' }}</p>
+                                                </div>
+                                            </div>
+
+                                            <hr>
+
+                                            <h6 class="text-muted mb-3">Payment Details</h6>
+                                            <div class="row mb-3">
+                                                <div class="col-md-6">
+                                                    <small class="text-muted">Amount</small>
+                                                    <p class="fw-bold text-success">₹{{ transaction.amount|floatformat:2 }}</p>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <small class="text-muted">Payment Method</small>
+                                                    <p>
+                                                        {% if transaction.payment_method %}
+                                                            {{ transaction.payment_method.get_method_type_display|title }}
+                                                        {% else %}
+                                                            —
+                                                        {% endif %}
+                                                    </p>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <small class="text-muted">Created Date</small>
+                                                    <p>{{ transaction.created_at|date:'d M, Y H:i' }}</p>
+                                                </div>
+                                                {% if transaction.completed_at %}
+                                                    <div class="col-md-6">
+                                                        <small class="text-muted">Completed Date</small>
+                                                        <p>{{ transaction.completed_at|date:'d M, Y H:i' }}</p>
+                                                    </div>
+                                                {% endif %}
+                                                {% if transaction.reference_number %}
+                                                    <div class="col-md-12">
+                                                        <small class="text-muted">Reference Number</small>
+                                                        <p class="font-monospace">{{ transaction.reference_number }}</p>
+                                                    </div>
+                                                {% endif %}
+                                            </div>
+
+                                            {% if transaction.notes %}
+                                                <hr>
+                                                <h6 class="text-muted mb-2">Notes</h6>
+                                                <p class="text-muted">{{ transaction.notes }}</p>
+                                            {% endif %}
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <div class="card-body text-center py-5">
+                    <i class="bi bi-inbox" style="font-size: 3rem; color: #6c757d;"></i>
+                    <h5 class="mt-3">No Transactions Found</h5>
+                    <p class="text-muted">Try adjusting your filters to find transactions.</p>
+                    <a href="{% url 'administration:transaction_history' %}" class="btn btn-primary mt-3">
+                        <i class="bi bi-arrow-clockwise"></i> Reset Filters
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Export Section -->
+    {% if transactions %}
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body">
+                        <h6 class="card-title mb-3">Export Data</h6>
+                        <form method="GET" action="{% url 'administration:transaction_history' %}" style="display: inline;">
+                            {% if request.GET.status %}
+                                <input type="hidden" name="status" value="{{ request.GET.status }}">
+                            {% endif %}
+                            {% if request.GET.date_from %}
+                                <input type="hidden" name="date_from" value="{{ request.GET.date_from }}">
+                            {% endif %}
+                            {% if request.GET.date_to %}
+                                <input type="hidden" name="date_to" value="{{ request.GET.date_to }}">
+                            {% endif %}
+                            {% if request.GET.search %}
+                                <input type="hidden" name="search" value="{{ request.GET.search }}">
+                            {% endif %}
+                            <button type="submit" name="export" value="csv" class="btn btn-success">
+                                <i class="bi bi-download"></i> Export as CSV
+                            </button>
+                            <button type="submit" name="export" value="excel" class="btn btn-info">
+                                <i class="bi bi-file-earmark-spreadsheet"></i> Export as Excel
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+</div>
+
+<style>
+    .table-responsive {
+        border-radius: 0 0 0.25rem 0.25rem;
+    }
+
+    .badge {
+        padding: 0.5rem 0.75rem;
+        font-size: 0.85rem;
+    }
+
+    .btn-group-sm > .btn {
+        padding: 0.25rem 0.5rem;
+    }
+</style>
+{% endblock %}

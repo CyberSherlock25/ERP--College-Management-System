@@ -4,10 +4,230 @@
 
 {% block content %}
 <div class="py-4">
-    <h1 class="h2 mb-4">Notifications</h1>
-    <div class="alert alert-info">
-        <i class="bi bi-info-circle"></i>
-        Notifications features coming soon!
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h2">
+            <i class="bi bi-bell-fill"></i> Notifications
+        </h1>
+        {% if notifications %}
+            <span class="badge bg-primary rounded-pill">{{ notifications.count }} Total</span>
+        {% endif %}
     </div>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                <i class="bi bi-{% if message.tags == 'success' %}check-circle{% elif message.tags == 'info' %}info-circle{% else %}exclamation-circle{% endif %}"></i>
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    {% if notifications %}
+        <!-- Notifications List -->
+        <div class="row">
+            <div class="col-lg-8">
+                {% for notification in notifications %}
+                    <div class="card shadow-sm mb-3 border-left {% if notification.is_urgent %}border-danger{% else %}border-primary{% endif %}">
+                        <div class="card-body">
+                            <div class="row align-items-start">
+                                <div class="col-auto">
+                                    <!-- Icon based on notification type -->
+                                    <div class="rounded-circle p-3 {% if notification.notification_type == 'general' %}bg-secondary{% elif notification.notification_type == 'academic' %}bg-info{% elif notification.notification_type == 'exam' %}bg-warning{% elif notification.notification_type == 'fee' %}bg-success{% elif notification.notification_type == 'event' %}bg-primary{% elif notification.notification_type == 'announcement' %}bg-danger{% else %}bg-dark{% endif %} text-white d-flex align-items-center justify-content-center" style="width: 50px; height: 50px;">
+                                        {% if notification.notification_type == 'general' %}
+                                            <i class="bi bi-info-circle"></i>
+                                        {% elif notification.notification_type == 'academic' %}
+                                            <i class="bi bi-book"></i>
+                                        {% elif notification.notification_type == 'exam' %}
+                                            <i class="bi bi-file-earmark-text"></i>
+                                        {% elif notification.notification_type == 'fee' %}
+                                            <i class="bi bi-credit-card"></i>
+                                        {% elif notification.notification_type == 'event' %}
+                                            <i class="bi bi-calendar-event"></i>
+                                        {% elif notification.notification_type == 'announcement' %}
+                                            <i class="bi bi-megaphone"></i>
+                                        {% else %}
+                                            <i class="bi bi-bell"></i>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="col">
+                                    <!-- Notification Title and Content -->
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div>
+                                            <h5 class="card-title mb-1 fw-bold">
+                                                {{ notification.title }}
+                                                {% if notification.is_urgent %}
+                                                    <span class="badge bg-danger ms-2"><i class="bi bi-exclamation-circle"></i> Urgent</span>
+                                                {% endif %}
+                                            </h5>
+                                            <p class="card-text text-muted mb-2">
+                                                {{ notification.message|truncatewords:30 }}
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <!-- Notification Meta Info -->
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <small class="text-muted">
+                                                <i class="bi bi-clock"></i> {{ notification.created_at|timesince }} ago
+                                            </small>
+                                            {% if notification.notification_type == 'general' %}
+                                                <span class="badge bg-secondary">{{ notification.get_notification_type_display }}</span>
+                                            {% elif notification.notification_type == 'academic' %}
+                                                <span class="badge bg-info">{{ notification.get_notification_type_display }}</span>
+                                            {% elif notification.notification_type == 'exam' %}
+                                                <span class="badge bg-warning text-dark">{{ notification.get_notification_type_display }}</span>
+                                            {% elif notification.notification_type == 'fee' %}
+                                                <span class="badge bg-success">{{ notification.get_notification_type_display }}</span>
+                                            {% elif notification.notification_type == 'event' %}
+                                                <span class="badge bg-primary">{{ notification.get_notification_type_display }}</span>
+                                            {% elif notification.notification_type == 'announcement' %}
+                                                <span class="badge bg-danger">{{ notification.get_notification_type_display }}</span>
+                                            {% else %}
+                                                <span class="badge bg-dark">{{ notification.get_notification_type_display }}</span>
+                                            {% endif %}
+                                        </div>
+                                        {% if notification.expires_at %}
+                                            <small class="text-danger">
+                                                <i class="bi bi-calendar-x"></i> Expires: {{ notification.expires_at|date:'d M, Y' }}
+                                            </small>
+                                        {% endif %}
+                                    </div>
+
+                                    <!-- Full Message Modal Toggle -->
+                                    {% if notification.message|length > 100 %}
+                                        <div class="mt-2">
+                                            <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#notificationModal{{ notification.id }}">
+                                                <i class="bi bi-eye"></i> View Full Message
+                                            </button>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Modal for Full Notification Message -->
+                    {% if notification.message|length > 100 %}
+                        <div class="modal fade" id="notificationModal{{ notification.id }}" tabindex="-1">
+                            <div class="modal-dialog modal-lg">
+                                <div class="modal-content">
+                                    <div class="modal-header {% if notification.is_urgent %}bg-danger{% else %}bg-primary{% endif %} text-white">
+                                        <h5 class="modal-title">{{ notification.title }}</h5>
+                                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <p><strong>Type:</strong> {{ notification.get_notification_type_display }}</p>
+                                        {% if notification.is_urgent %}
+                                            <p><span class="badge bg-danger"><i class="bi bi-exclamation-circle"></i> This is an urgent notification</span></p>
+                                        {% endif %}
+                                        <hr>
+                                        <p>{{ notification.message }}</p>
+                                        <hr>
+                                        <small class="text-muted">
+                                            <i class="bi bi-clock"></i> Created: {{ notification.created_at|date:'d M, Y H:i' }}<br>
+                                            {% if notification.expires_at %}
+                                                <i class="bi bi-calendar-x"></i> Expires: {{ notification.expires_at|date:'d M, Y H:i' }}
+                                            {% endif %}
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+
+            <!-- Sidebar with Filters and Statistics -->
+            <div class="col-lg-4">
+                <!-- Notification Statistics -->
+                <div class="card shadow-sm mb-3">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0"><i class="bi bi-bar-chart"></i> Statistics</h5>
+                    </div>
+                    <div class="card-body">
+                        {% regroup notifications by notification_type as notif_by_type %}
+                        {% for type_group in notif_by_type %}
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="text-muted">{{ type_group.grouper|title }}:</span>
+                                <span class="badge bg-secondary">{{ type_group.list|length }}</span>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <!-- Urgent Notifications -->
+                {% with urgent_notifs=notifications|dictsort:"is_urgent" %}
+                    {% if urgent_notifs %}
+                        <div class="card shadow-sm mb-3 border-danger">
+                            <div class="card-header bg-danger text-white">
+                                <h5 class="mb-0"><i class="bi bi-exclamation-circle"></i> Urgent</h5>
+                            </div>
+                            <div class="card-body p-0">
+                                <ul class="list-group list-group-flush">
+                                    {% for notification in notifications %}
+                                        {% if notification.is_urgent %}
+                                            <li class="list-group-item">
+                                                <small class="fw-bold text-danger">{{ notification.title|truncatewords:5 }}</small><br>
+                                                <small class="text-muted">{{ notification.created_at|timesince }} ago</small>
+                                            </li>
+                                        {% endif %}
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        </div>
+                    {% endif %}
+                {% endwith %}
+
+                <!-- Quick Links -->
+                <div class="card shadow-sm">
+                    <div class="card-header bg-secondary text-white">
+                        <h5 class="mb-0"><i class="bi bi-link"></i> Quick Links</h5>
+                    </div>
+                    <div class="card-body">
+                        <a href="{% url 'students:dashboard' %}" class="btn btn-outline-secondary btn-sm w-100 mb-2">
+                            <i class="bi bi-house"></i> Back to Dashboard
+                        </a>
+                        <a href="{% url 'students:fees' %}" class="btn btn-outline-success btn-sm w-100">
+                            <i class="bi bi-credit-card"></i> Fee Management
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    {% else %}
+        <!-- No Notifications -->
+        <div class="alert alert-info text-center py-5">
+            <i class="bi bi-inbox" style="font-size: 3rem; color: #0dcaf0;"></i>
+            <h4 class="mt-3">No Notifications Yet</h4>
+            <p class="text-muted">You're all caught up! Check back later for new notifications.</p>
+            <a href="{% url 'students:dashboard' %}" class="btn btn-primary mt-3">
+                <i class="bi bi-arrow-left"></i> Go to Dashboard
+            </a>
+        </div>
+    {% endif %}
 </div>
+
+<style>
+    .border-left {
+        border-left: 4px solid;
+    }
+
+    .card {
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .notification-badge {
+        font-size: 0.85rem;
+        padding: 0.5rem 0.75rem;
+    }
+</style>
 {% endblock %}

@@ -407,7 +407,15 @@ def fees(request):
                 if amount_decimal >= fee.amount:
                     fee.payment_status = 'paid'
                     fee.payment_date = timezone.now().date()
-                    messages.success(request, f"✅ Full payment of ₹{amount_decimal} successful!\nTransaction ID: {transaction_id}\nReceipt has been generated.")
+                    success_msg = f"""
+                    ✅ <strong>Full Payment Successful!</strong><br>
+                    Amount Paid: <strong>₹{amount_decimal}</strong><br>
+                    Transaction ID: <strong>{transaction_id}</strong><br>
+                    <a href="{{{{ url 'students:fee_receipt' {0} }}}}" target="_blank" class="btn btn-sm btn-primary mt-2">
+                        📄 Download Receipt
+                    </a>
+                    """.format(fee.id)
+                    messages.success(request, success_msg)
                 elif amount_decimal > 0:
                     fee.payment_status = 'partial'
                     messages.success(request, f"✅ Partial payment of ₹{amount_decimal} received!\nTransaction ID: {transaction_id}\nRemaining: ₹{fee.amount - amount_decimal}")
@@ -448,7 +456,7 @@ def fees(request):
 
 @login_required
 def fee_receipt(request, fee_id):
-    """Generate and display fee payment receipt"""
+    """Generate and display fee payment receipt with all payment details"""
     if not request.user.is_student:
         messages.error(request, "Access denied.")
         return redirect('accounts:login')
@@ -459,9 +467,28 @@ def fee_receipt(request, fee_id):
         messages.error(request, "Fee receipt not found.")
         return redirect('students:fees')
     
+    # Get student profile
+    student = request.user.student_profile
+    
+    # Get transaction details if the fee is paid
+    transaction = None
+    if fee.payment_status == 'paid':
+        from academics.models import Transaction
+        try:
+            transaction = Transaction.objects.filter(fee=fee, status='completed').latest('completed_at')
+        except Transaction.DoesNotExist:
+            transaction = None
+    
+    # Calculate receipt number
+    receipt_number = f"RCP-{fee.id:05d}-{fee.payment_date.strftime('%d%m%Y') if fee.payment_date else ''}"
+    
     context = {
-        'student': request.user.student_profile,
+        'student': student,
         'fee': fee,
+        'transaction': transaction,
+        'receipt_number': receipt_number,
+        'admission_number': student.admission_number,
+        'prn': student.roll_number,  # PRN (Permanent Roll Number) = Roll Number
     }
     return render(request, 'students/fee_receipt.html', context)
 
@@ -505,3 +532,70 @@ def academic_calendar(request):
         'calendar_events': calendar_events,
     }
     return render(request, 'students/academic_calendar.html', context)
+
+
+@login_required
+def download_fee_receipt(request, fee_id):
+    """Download fee receipt as PDF"""
+    if not request.user.is_student:
+        messages.error(request, "Access denied.")
+        return redirect('accounts:login')
+    
+    try:
+        fee = Fee.objects.get(id=fee_id, student=request.user)
+    except Fee.DoesNotExist:
+        messages.error(request, "Fee receipt not found.")
+        return redirect('students:fees')
+    
+    if fee.payment_status != 'paid':
+        messages.warning(request, "Receipt can only be downloaded for paid fees.")
+        return redirect('students:fees')
+    
+    # Try to import weasyprint for PDF generation
+    try:
+        from weasyprint import HTML, CSS
+        from django.template.loader import render_to_string
+        from io import BytesIO
+        from django.http import HttpResponse
+        
+        student = request.user.student_profile
+        
+        # Get transaction details
+        from academics.models import Transaction
+        try:
+            transaction = Transaction.objects.filter(fee=fee, status='completed').latest('completed_at')
+        except Transaction.DoesNotExist:
+            transaction = None
+        
+        # Calculate receipt number
+        receipt_number = f"RCP-{fee.id:05d}-{fee.payment_date.strftime('%d%m%Y') if fee.payment_date else ''}"
+        
+        context = {
+            'student': student,
+            'fee': fee,
+            'transaction': transaction,
+            'receipt_number': receipt_number,
+            'admission_number': student.admission_number,
+            'prn': student.roll_number,
+        }
+        
+        # Render HTML template
+        html_string = render_to_string('students/fee_receipt_pdf.html', context)
+        
+        # Generate PDF
+        html = HTML(string=html_string, base_url=request.build_absolute_uri('/'))
+        pdf_bytes = html.write_pdf()
+        
+        # Return PDF response
+        response = HttpResponse(pdf_bytes, content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="Receipt_{receipt_number}.pdf"'
+        return response
+        
+    except ImportError:
+        # Fallback: render HTML for printing
+        messages.info(request, "PDF library not installed. Please use your browser's print function to save as PDF.")
+        return redirect('students:fee_receipt', fee_id=fee_id)
+    except Exception as e:
+        messages.error(request, f"Error generating PDF: {str(e)}")
+        return redirect('students:fee_receipt', fee_id=fee_id)
+
