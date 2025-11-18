@@ -22,6 +22,46 @@
     </div>
     
     {% if teacher_timetable %}
+        <!-- Teaching Summary Cards -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card border-primary shadow-sm">
+                    <div class="card-body text-center">
+                        <h6 class="card-title text-muted"><i class="bi bi-calendar3"></i> Teaching Hours</h6>
+                        <h3 class="text-primary">{{ teacher_timetable|length }}</h3>
+                        <small class="text-muted">Scheduled Sessions</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card border-success shadow-sm">
+                    <div class="card-body text-center">
+                        <h6 class="card-title text-muted"><i class="bi bi-people-fill"></i> Classes</h6>
+                        <h3 class="text-success" id="unique-classes">{{ unique_classes }}</h3>
+                        <small class="text-muted">Assigned Classes</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card border-info shadow-sm">
+                    <div class="card-body text-center">
+                        <h6 class="card-title text-muted"><i class="bi bi-book"></i> Subjects</h6>
+                        <h3 class="text-info" id="unique-subjects">{{ unique_subjects }}</h3>
+                        <small class="text-muted">Course Subjects</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card border-warning shadow-sm">
+                    <div class="card-body text-center">
+                        <h6 class="card-title text-muted"><i class="bi bi-calendar-check"></i> Academic Year</h6>
+                        <h3 class="text-warning">{{ selected_year }}</h3>
+                        <small class="text-muted">Current Schedule</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
         <!-- Timetable Image Section -->
         <div class="card shadow-lg mb-4">
             <div class="card-header bg-secondary text-white">
@@ -62,11 +102,24 @@
                                             {% with classes=organized_timetable|lookup:day %}
                                                 {% for schedule in classes %}
                                                     {% if schedule.time_slot.start_time == start_time and schedule.time_slot.end_time == end_time %}
-                                                        <div class="timetable-cell">
-                                                            <div class="fw-bold mb-1">{{ schedule.subject.course.code }}</div>
-                                                            <div class="small mb-1">{{ schedule.subject.course.name }}</div>
-                                                            <div class="small mb-1"><i class="bi bi-people"></i> {{ schedule.subject.class_assigned }}</div>
-                                                            <div class="small"><i class="bi bi-door-closed"></i> {{ schedule.room_number|default:"TBA" }}</div>
+                                                        <div class="timetable-cell" style="background: linear-gradient(135deg, #007bff 0%, rgba(0, 123, 255, 0.1) 100%); border-left: 4px solid #0056b3; padding: 8px;">
+                                                            <div class="fw-bold mb-2" style="font-size: 0.95rem; color: #0056b3;">
+                                                                <i class="bi bi-book"></i> {{ schedule.subject.course.code }}
+                                                            </div>
+                                                            <div class="small mb-2" style="color: #333;">{{ schedule.subject.course.name }}</div>
+                                                            <div class="small mb-2 p-2 rounded" style="background-color: white; border: 2px solid #0056b3; color: #0056b3; font-weight: bold;">
+                                                                <i class="bi bi-people-fill"></i> Class: {{ schedule.subject.class_assigned.name|upper }}
+                                                            </div>
+                                                            {% if schedule.subject.class_assigned.section %}
+                                                                <div class="small mb-1" style="color: #555;">Section: <span style="font-weight: bold;">{{ schedule.subject.class_assigned.section }}</span></div>
+                                                            {% endif %}
+                                                            <div class="small mb-1" style="color: #555;">
+                                                                <i class="bi bi-mortarboard"></i> 
+                                                                <span style="font-weight: bold;">Sem {{ schedule.subject.class_assigned.semester }}</span>
+                                                            </div>
+                                                            <div class="small" style="color: #666;">
+                                                                <i class="bi bi-door-closed"></i> {{ schedule.room_number|default:"Room TBA" }}
+                                                            </div>
                                                         </div>
                                                     {% endif %}
                                                 {% endfor %}
@@ -95,27 +148,56 @@
                     </div>
                     <div class="card-body">
                         <div class="table-responsive">
-                            <table class="table table-hover">
-                                <thead>
+                            <table class="table table-hover table-striped">
+                                <thead class="table-dark">
                                     <tr>
-                                        <th>Day</th>
-                                        <th>Time</th>
-                                        <th>Subject</th>
-                                        <th>Class</th>
-                                        <th>Room</th>
+                                        <th><i class="bi bi-calendar-week"></i> Day</th>
+                                        <th><i class="bi bi-clock"></i> Time</th>
+                                        <th><i class="bi bi-book"></i> Subject Code</th>
+                                        <th><i class="bi bi-journal-text"></i> Subject Name</th>
+                                        <th><i class="bi bi-people-fill"></i> Class</th>
+                                        <th><i class="bi bi-mortarboard"></i> Semester</th>
+                                        <th><i class="bi bi-door-closed"></i> Room</th>
+                                        <th><i class="bi bi-tag"></i> Type</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {% for schedule in teacher_timetable %}
                                     <tr>
-                                        <td class="fw-bold">{{ schedule.time_slot.get_day_display }}</td>
-                                        <td>{{ schedule.time_slot.start_time|time:"g:i A" }} - {{ schedule.time_slot.end_time|time:"g:i A" }}</td>
-                                        <td>
-                                            <strong>{{ schedule.subject.course.code }}</strong> - {{ schedule.subject.course.name }}<br>
-                                            <span class="badge bg-secondary">{{ schedule.subject.get_subject_type_display }}</span>
+                                        <td class="fw-bold" style="color: #0056b3;">
+                                            {{ schedule.time_slot.get_day_display }}
                                         </td>
-                                        <td>{{ schedule.subject.class_assigned }}</td>
-                                        <td><i class="bi bi-door-closed"></i> {{ schedule.room_number|default:"TBA" }}</td>
+                                        <td>
+                                            <span class="badge bg-info">{{ schedule.time_slot.start_time|time:"g:i A" }} - {{ schedule.time_slot.end_time|time:"g:i A" }}</span>
+                                        </td>
+                                        <td>
+                                            <strong style="color: #0056b3; font-size: 1.1rem;">{{ schedule.subject.course.code }}</strong>
+                                        </td>
+                                        <td>
+                                            {{ schedule.subject.course.name }}
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-primary" style="font-size: 0.95rem; padding: 6px 10px;">
+                                                <i class="bi bi-people-fill"></i> {{ schedule.subject.class_assigned.name|upper }}
+                                            </span>
+                                            <br>
+                                            <small class="text-muted">Dept: {{ schedule.subject.class_assigned.department.code }}</small>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-success">Sem {{ schedule.subject.class_assigned.semester }}</span>
+                                        </td>
+                                        <td>
+                                            <i class="bi bi-door-closed"></i> {{ schedule.room_number|default:"TBA" }}
+                                        </td>
+                                        <td>
+                                            {% if schedule.subject.subject_type == 'TH' %}
+                                                <span class="badge bg-warning text-dark">Theory</span>
+                                            {% elif schedule.subject.subject_type == 'PR' %}
+                                                <span class="badge bg-danger">Practical</span>
+                                            {% elif schedule.subject.subject_type == 'TU' %}
+                                                <span class="badge bg-info">Tutorial</span>
+                                            {% endif %}
+                                        </td>
                                     </tr>
                                     {% endfor %}
                                 </tbody>

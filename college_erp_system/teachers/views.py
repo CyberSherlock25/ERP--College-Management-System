@@ -239,12 +239,16 @@ def teacher_timetable(request):
     organized_timetable = defaultdict(list)
     time_slots_set = set()
     days_set = set()
+    unique_classes = set()
+    unique_subjects = set()
     
     for entry in teacher_timetable_objs:
         day = entry.time_slot.day.lower()
         organized_timetable[day].append(entry)
         days_set.add(day)
         time_slots_set.add((entry.time_slot.start_time, entry.time_slot.end_time))
+        unique_classes.add(entry.subject.class_assigned.id)
+        unique_subjects.add(entry.subject.course.id)
     
     # Convert to sorted lists
     days = sorted(list(days_set), key=lambda x: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'].index(x))
@@ -262,6 +266,8 @@ def teacher_timetable(request):
         'time_slots': time_slots,
         'academic_years': academic_years or ['2025-2026'],
         'selected_year': selected_year,
+        'unique_classes': len(unique_classes),
+        'unique_subjects': len(unique_subjects),
     }
     return render(request, 'teachers/timetable.html', context)
 
